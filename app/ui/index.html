@@ -68,6 +68,7 @@
   .modal-body { overflow: auto; padding: 8px 16px 16px; }
   .ver { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
   .ver button { padding: 6px 12px; font-size: 13px; }
+  .ver-btns { display: flex; gap: 6px; flex: none; }
   .act .queued { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
   #queueInfo { font-size: 13px; color: var(--accent); margin: -4px 0 8px; min-height: 0; }
   .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 6px 0 0; }
@@ -155,8 +156,7 @@
   <div class="modal-box">
     <div class="modal-head"><b id="verTitle">Версии</b><button class="ghost" id="verClose">✕</button></div>
     <div class="modal-body">
-      <p class="muted" style="margin:6px 0 4px">Пригодится, если новая версия не поддерживает iOS вашего iPhone.
-        Доступны только версии, которые Apple ещё хранит.</p>
+      <p class="muted" id="verHint" style="margin:6px 0 4px"></p>
       <div id="verList"></div>
       <div class="err" id="verErr"></div>
       <button class="ghost hidden" id="verMore" style="margin-top:10px">Показать ещё</button>
@@ -218,55 +218,99 @@ async function loadDevices() {
 }
 $("refreshDevs").onclick = loadDevices;
 
-function appCard(a) {
-  const icon = a.icon ? `<img src="${esc(a.icon)}" alt="" loading="lazy">` : esc((a.name || "?")[0]);
-  const style = a.icon ? "" : `style="background:${esc(a.color || "var(--accent)")}"`;
-  return `<div class="app"><div class="icon" ${style}>${icon}</div>
-    <div class="name">${esc(a.name)}</div><div class="muted">id${esc(a.id)}${a.removed ? " · нет в App Store" : ""}</div>
-    <div class="act" data-act="${esc(a.id)}" data-name="${esc(a.name)}">${actionHtml(a.id, a.name)}</div></div>`;
+// Группы: приложения одного бренда («Газпромбанк», «Газпромбанк (В балансе)», …) — одна карточка,
+// конкретный вариант пользователь выбирает в окне «Варианты и версии»
+const baseName = n => n.replace(/\s*\([^()]*\)\s*$/, "").trim() || n;
+const groups = {};      // key -> {key, title, apps, main}
+const groupKeys = {};   // appId -> Set(key): одно приложение может быть и в каталоге, и в результатах поиска
+function makeGroups(list, prefix) {
+  const out = [], byBase = {};
+  for (const a of list) {
+    const base = baseName(a.name), k = `${prefix}:${a.category || ""}:${base}`;
+    let g = byBase[k];
+    if (!g) { g = byBase[k] = {key: k, title: base, category: a.category, apps: []}; out.push(g); groups[k] = g; }
+    g.apps.push(a);
+    (groupKeys[a.id] ||= new Set()).add(k);
+  }
+  for (const g of out) {
+    g.main = g.apps.find(a => a.name === g.title) || (g.apps.length === 1 ? g.apps[0] : null);
+    if (g.main) g.apps = [g.main, ...g.apps.filter(a => a !== g.main)];
+  }
+  return out;
+}
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many;
+}
+function variantLabel(a, g) {
+  if (a === g.main) return "Основное приложение";
+  const m = a.name.match(/\(([^()]*)\)\s*$/);
+  return m ? m[1] : a.name;
 }
 
-// Задачи установки по appId — то, что вернул /api/jobs (последняя задача для каждого приложения)
-const jobState = {};
-const shown = {};  // что сейчас нарисовано в карточке, чтобы не перерисовывать без изменений
-const RUNNING = ["download", "install"];
-function actionHtml(id, name) {
-  const s = jobState[id];
-  const btn = label => `<button data-id="${esc(id)}" data-name="${esc(name)}">${label}</button>`;
-  const verLink = `<button class="link" data-versions="${esc(id)}" data-name="${esc(name)}">Другая версия…</button>`;
-  if (!s || s.stage === "canceled") return btn("Установить") + verLink;
-  if (s.stage === "queued") return `<div class="queued">В очереди · №${s.position || "?"}</div>
-    <button class="ghost" data-cancel="${esc(s.id)}">Отменить</button>`;
-  if (RUNNING.includes(s.stage)) return `<div class="bar indef"><div></div></div><div class="muted">${esc(s.message)}</div>`
-    + (s.versionLabel ? `<div class="muted">Версия ${esc(s.versionLabel)}</div>` : "");
-  if (s.stage === "done") return `<div class="ok">✓ Установлено</div><div class="muted">${esc((s.message || "").split("\n").slice(1).join(" "))}</div>` + verLink;
-  return `${btn("Повторить")}<div class="err">${esc(s.error || s.message)}</div>` + verLink;
+function groupCard(g) {
+  const face = g.main || g.apps[0];
+  const icon = face.icon ? `<img src="${esc(face.icon)}" alt="" loading="lazy">` : esc((g.title || "?")[0]);
+  const style = face.icon ? "" : `style="background:${esc(face.color || "var(--accent)")}"`;
+  const n = g.apps.length;
+  const sub = n > 1 ? `${n} ${plural(n, "вариант", "варианта", "вариантов")}` : `id${esc(face.id)}${face.removed ? " · нет в App Store" : ""}`;
+  return `<div class="app"><div class="icon" ${style}>${icon}</div>
+    <div class="name">${esc(g.title)}</div><div class="muted">${sub}</div>
+    <div class="act" data-group="${esc(g.key)}">${actionHtml(g)}</div></div>`;
 }
-function updateAct(id) {
-  const s = jobState[id];
-  const key = s ? `${s.id}:${s.stage}:${s.position}` : "";
-  document.querySelectorAll(`.act[data-act="${id}"]`).forEach(el => {
+
+// Задачи установки по appId — то, что вернул /api/jobs; _seq — порядок, чтобы найти последнюю в группе
+const jobState = {};
+const RUNNING = ["download", "install"];
+const isActive = s => s.stage === "queued" || RUNNING.includes(s.stage);
+function groupJob(g) {
+  const list = g.apps.map(a => jobState[a.id]).filter(s => s && s.stage !== "canceled");
+  return list.find(isActive) || list.sort((a, b) => b._seq - a._seq)[0];
+}
+function actionHtml(g) {
+  const s = groupJob(g), n = g.apps.length;
+  const link = n > 1
+    ? `<button class="link" data-variants="${esc(g.key)}">Варианты и версии…</button>`
+    : `<button class="link" data-versions="${esc(g.apps[0].id)}" data-name="${esc(g.apps[0].name)}">Другая версия…</button>`;
+  const start = g.main ? `<button data-id="${esc(g.main.id)}" data-name="${esc(g.main.name)}">Установить</button>`
+                       : `<button data-variants="${esc(g.key)}">Выбрать вариант</button>`;
+  const which = s && s.name && s.name !== g.title ? `<div class="muted">${esc(s.name)}</div>` : "";
+  if (!s) return start + link;
+  if (s.stage === "queued") return `<div class="queued">В очереди · №${s.position || "?"}</div>${which}
+    <button class="ghost" data-cancel="${esc(s.id)}">Отменить</button>`;
+  if (RUNNING.includes(s.stage)) return `<div class="bar indef"><div></div></div><div class="muted msg">${esc(s.message)}</div>${which}`
+    + (s.versionLabel ? `<div class="muted">Версия ${esc(s.versionLabel)}</div>` : "");
+  if (s.stage === "done") return `<div class="ok">✓ Установлено</div>${which}<div class="muted">${esc((s.message || "").split("\n").slice(1).join(" "))}</div>` + link;
+  return `<button data-id="${esc(s.appId)}" data-name="${esc(s.name || g.title)}">Повторить</button>${which}<div class="err">${esc(s.error || s.message)}</div>` + link;
+}
+function renderGroup(key) {
+  const g = groups[key], s = groupJob(g);
+  const sig = s ? `${s.id}:${s.stage}:${s.position}` : "";
+  document.querySelectorAll(`.act[data-group="${CSS.escape(key)}"]`).forEach(el => {
     const bar = el.querySelector(".bar");
-    if (s && RUNNING.includes(s.stage) && bar && el.dataset.key === key) {  // обновляем на месте, чтобы анимация не прыгала
+    if (s && RUNNING.includes(s.stage) && bar && el.dataset.sig === sig) {  // обновляем на месте, чтобы анимация не прыгала
       bar.classList.toggle("indef", s.progress == null);
       bar.firstElementChild.style.width = s.progress == null ? "" : (s.progress * 100).toFixed(1) + "%";
-      el.querySelector(".muted").textContent = s.message;
+      el.querySelector(".msg").textContent = s.message;
       return;
     }
-    if (el.dataset.key === key && el.innerHTML) return;
-    el.dataset.key = key;
-    el.innerHTML = actionHtml(id, el.dataset.name);
+    if (el.dataset.sig === sig && el.innerHTML) return;
+    el.dataset.sig = sig;
+    el.innerHTML = actionHtml(g);
     bindInstall(el);
   });
 }
-let catalog = [];
+function updateAct(appId) { (groupKeys[appId] || []).forEach(renderGroup); }
+
+let catalog = [], catalogGroups = [];
 function renderCatalog() {
   const f = $("catFilter").value.trim().toLowerCase();
-  const groups = {};
-  catalog.filter(a => !f || a.name.toLowerCase().includes(f) || String(a.id).includes(f))
-    .forEach(a => (groups[a.category || "Другое"] ||= []).push(a));
-  $("catalog").innerHTML = Object.entries(groups).map(([c, list]) =>
-    `<p class="cat-title">${esc(c)}</p><div class="grid">${list.map(appCard).join("")}</div>`).join("")
+  const byCat = {};
+  catalogGroups.filter(g => !f || g.title.toLowerCase().includes(f) ||
+                            g.apps.some(a => a.name.toLowerCase().includes(f) || String(a.id).includes(f)))
+    .forEach(g => (byCat[g.category || "Другое"] ||= []).push(g));
+  $("catalog").innerHTML = Object.entries(byCat).map(([c, list]) =>
+    `<p class="cat-title">${esc(c)}</p><div class="grid">${list.map(groupCard).join("")}</div>`).join("")
     || `<div class="muted" style="margin-top:12px">Ничего не найдено</div>`;
   bindInstall($("catalog"));
 }
@@ -275,6 +319,7 @@ $("catFilter").oninput = renderCatalog;
 function bindInstall(root) {
   root.querySelectorAll("button[data-id]").forEach(b => b.onclick = () => install(b.dataset.id, b.dataset.name));
   root.querySelectorAll("button[data-versions]").forEach(b => b.onclick = () => openVersions(b.dataset.versions, b.dataset.name));
+  root.querySelectorAll("button[data-variants]").forEach(b => b.onclick = () => openVariants(b.dataset.variants));
   root.querySelectorAll("button[data-cancel]").forEach(b => b.onclick = async () => {
     b.disabled = true;
     try { await api("/api/cancel", {job: b.dataset.cancel}); } catch (e) { alert(e.message); }
@@ -287,19 +332,40 @@ $("searchBtn").onclick = async () => {
   $("searchErr").textContent = ""; $("results").innerHTML = `<div class="muted">Ищу…</div>`;
   try {
     const r = await api("/api/search?q=" + encodeURIComponent(q));
-    $("results").innerHTML = r.results.length ? r.results.map(appCard).join("") : `<div class="muted">Ничего не найдено. Удалённые приложения ищите по App Store ID.</div>`;
+    const found = makeGroups(r.results.map(a => ({...a, category: "Поиск"})), "search" + Date.now());
+    $("results").innerHTML = found.length ? found.map(groupCard).join("") : `<div class="muted">Ничего не найдено. Удалённые приложения ищите по App Store ID.</div>`;
     bindInstall($("results"));
   } catch (e) { $("results").innerHTML = ""; $("searchErr").textContent = e.message; }
 };
 $("q").onkeydown = e => { if (e.key === "Enter") $("searchBtn").click(); };
 
-// Выбор версии: список externalVersionId с номерами версий и датами, порциями по 10
+// Окно: список вариантов группы и/или версий одного приложения (версии — порциями по 10)
 let verApp = null, verOffset = 0;
-async function openVersions(appId, name) {
+function openModal(title, hint) {
+  $("verTitle").textContent = title; $("verHint").textContent = hint;
+  $("verList").innerHTML = ""; $("verErr").textContent = ""; $("verMore").classList.add("hidden");
+  $("verModal").classList.remove("hidden");
+}
+function openVariants(key) {
+  const g = groups[key];
+  verApp = null;
+  openModal(g.title, "Это приложение выходило в App Store под разными названиями. Установится тот вариант, " +
+                     "который есть в истории покупок вашего Apple ID.");
+  $("verList").innerHTML = g.apps.map(a => `<div class="ver"><div><b>${esc(variantLabel(a, g))}</b>
+    <div class="muted">id${esc(a.id)}</div></div><div class="ver-btns">
+    <button class="ghost" data-vv="${esc(a.id)}" data-name="${esc(a.name)}">Версии</button>
+    <button data-vi="${esc(a.id)}" data-name="${esc(a.name)}">Установить</button></div></div>`).join("");
+  $("verList").querySelectorAll("button[data-vi]").forEach(b => b.onclick = () => { closeVersions(); install(b.dataset.vi, b.dataset.name); });
+  $("verList").querySelectorAll("button[data-vv]").forEach(b => b.onclick = () => openVersions(b.dataset.vv, b.dataset.name, key));
+}
+async function openVersions(appId, name, backKey) {
   if (!account) { alert("Сначала войдите в Apple ID (шаг 1)"); return; }
   verApp = {appId, name}; verOffset = 0;
-  $("verTitle").textContent = name; $("verList").innerHTML = ""; $("verErr").textContent = "";
-  $("verModal").classList.remove("hidden");
+  openModal(name, "Пригодится, если новая версия не поддерживает iOS вашего iPhone. Доступны только версии, которые Apple ещё хранит.");
+  if (backKey) {
+    $("verList").innerHTML = `<button class="link" id="verBack" style="margin:4px 0 6px">← Все варианты</button>`;
+    $("verBack").onclick = () => openVariants(backKey);
+  }
   await loadVersions();
 }
 async function loadVersions() {
@@ -336,7 +402,8 @@ async function install(appId, name, versionId, versionLabel) {
     await api("/api/install", {appId, name, udid, purchase: $("purchase").checked, keepIpa: $("keepIpa").checked,
                                versionId, versionLabel});
   } catch (e) {
-    jobState[appId] = {id: "local", stage: "error", error: e.message}; updateAct(appId);
+    jobState[appId] = {id: "local", appId: Number(appId), name, stage: "error", error: e.message, _seq: 1e9};
+    updateAct(appId);
     return;
   }
   poll();
@@ -344,12 +411,12 @@ async function install(appId, name, versionId, versionLabel) {
 
 // Один общий опрос очереди: часто, пока что-то ставится, и редко в простое
 let pollTimer = null, handledRelogin = new Set();
-function hasActive() { return Object.values(jobState).some(s => s.stage === "queued" || RUNNING.includes(s.stage)); }
+function hasActive() { return Object.values(jobState).some(isActive); }
 async function poll() {
   clearTimeout(pollTimer);
   try {
     const {jobs} = await api("/api/jobs");
-    for (const j of jobs) jobState[j.appId] = j;  // jobs идут в порядке добавления — остаётся последняя
+    jobs.forEach((j, i) => { j._seq = i; jobState[j.appId] = j; });  // jobs идут в порядке добавления — остаётся последняя
     Object.keys(jobState).forEach(updateAct);
     for (const j of jobs) if (j.relogin && !handledRelogin.has(j.id)) { handledRelogin.add(j.id); account = null; renderAccount(); }
     const running = jobs.find(j => RUNNING.includes(j.stage)), waiting = jobs.filter(j => j.stage === "queued").length;
@@ -362,7 +429,8 @@ async function poll() {
 (async () => {
   account = (await api("/api/state")).account; renderAccount();
   catalog = (await api("/api/catalog")).apps;
-  $("catCount").textContent = catalog.length;
+  catalogGroups = makeGroups(catalog, "cat");
+  $("catCount").textContent = `${catalog.length} ${plural(catalog.length, "приложение", "приложения", "приложений")}`;
   renderCatalog();
   loadDevices();
   poll();
