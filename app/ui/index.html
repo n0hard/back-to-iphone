@@ -57,7 +57,7 @@
   .act .muted, .act .err { font-size: 12px; line-height: 1.35; margin-top: 4px; }
   .act .err { min-height: 0; }
   .act .ok { color: var(--ok); font-weight: 600; font-size: 13px; }
-  .link { background: none; border: 0; padding: 0; margin-top: 6px; color: var(--accent); font-size: 12px;
+  .link { background: none; border: 0; padding: 0; margin-top: 6px; color: var(--accent); font-size: 12px; text-align: left;
           font-weight: 500; cursor: pointer; display: block; }
   .link:hover { text-decoration: underline; }
   .modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: grid; place-items: center; padding: 16px; z-index: 10; }
@@ -270,7 +270,7 @@ function groupJob(g) {
 function actionHtml(g) {
   const s = groupJob(g), n = g.apps.length;
   const link = n > 1
-    ? `<button class="link" data-variants="${esc(g.key)}">Варианты и версии…</button>`
+    ? `<button class="link" data-variants="${esc(g.key)}">Все варианты…</button>`
     : `<button class="link" data-versions="${esc(g.apps[0].id)}" data-name="${esc(g.apps[0].name)}">Другая версия…</button>`;
   const start = g.main ? `<button data-id="${esc(g.main.id)}" data-name="${esc(g.main.name)}">Установить</button>`
                        : `<button data-variants="${esc(g.key)}">Выбрать вариант</button>`;

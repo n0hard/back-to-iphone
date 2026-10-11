@@ -1,7 +1,7 @@
 ﻿; Инсталлятор «Возврат» (Inno Setup 6). Сборка: build.bat в корне проекта.
 
 #define AppName "Возврат"
-#define AppVersion "1.0.0"
+#define AppVersion "1.1.0"
 #define AppExe "Vozvrat.exe"
 
 [Setup]
