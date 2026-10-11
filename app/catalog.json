@@ -1,0 +1,415 @@
+{
+ "note": "ID взяты из архивных страниц apps.apple.com (web.archive.org); все приложения отсутствуют в App Store по данным iTunes Lookup на 11.10.2026. Игры Supercell есть в App Store других стран, но не в российском.",
+ "apps": [
+  {
+   "id": 492224193,
+   "name": "СберБанк Онлайн",
+   "color": "#21A038",
+   "category": "Банки",
+   "icon": "icons/492224193.png"
+  },
+  {
+   "id": 472951966,
+   "name": "ВТБ Онлайн",
+   "color": "#0A2896",
+   "category": "Банки",
+   "icon": "icons/472951966.png"
+  },
+  {
+   "id": 353127685,
+   "name": "Альфа-Банк",
+   "color": "#EF3124",
+   "category": "Банки",
+   "icon": "icons/353127685.png"
+  },
+  {
+   "id": 455652438,
+   "name": "Т-Банк (Тинькофф)",
+   "color": "#FFDD2D",
+   "category": "Банки",
+   "icon": "icons/455652438.png"
+  },
+  {
+   "id": 1208055056,
+   "name": "Совкомбанк Халва",
+   "color": "#E4003A",
+   "category": "Банки",
+   "icon": "icons/1208055056.png"
+  },
+  {
+   "id": 979116495,
+   "name": "Почта Банк",
+   "color": "#1F3C88",
+   "category": "Банки",
+   "icon": "icons/979116495.png"
+  },
+  {
+   "id": 548000415,
+   "name": "ПСБ",
+   "color": "#F26722",
+   "category": "Банки",
+   "icon": "icons/548000415.png"
+  },
+  {
+   "id": 1406492297,
+   "name": "Газпромбанк",
+   "color": "#0055A5",
+   "category": "Банки",
+   "icon": "icons/1406492297.png"
+  },
+  {
+   "id": 1438090038,
+   "name": "Росбанк Онлайн",
+   "color": "#E2001A",
+   "category": "Банки"
+  },
+  {
+   "id": 1184367593,
+   "name": "МТС Банк",
+   "color": "#E30611",
+   "category": "Банки",
+   "icon": "icons/1184367593.png"
+  },
+  {
+   "id": 523105309,
+   "name": "Русский Стандарт",
+   "color": "#1C1C1C",
+   "category": "Банки",
+   "icon": "icons/523105309.png"
+  },
+  {
+   "id": 6446702225,
+   "name": "Русский Стандарт Онлайн",
+   "color": "#1C1C1C",
+   "category": "Банки",
+   "icon": "icons/6446702225.png"
+  },
+  {
+   "id": 1061008282,
+   "name": "Хоум Банк",
+   "color": "#E2001A",
+   "category": "Банки"
+  },
+  {
+   "id": 1135404935,
+   "name": "МКБ Онлайн",
+   "color": "#D7282F",
+   "category": "Банки",
+   "icon": "icons/1135404935.png"
+  },
+  {
+   "id": 808733030,
+   "name": "Уралсиб Онлайн",
+   "color": "#1C3F94",
+   "category": "Банки",
+   "icon": "icons/808733030.png"
+  },
+  {
+   "id": 1264479292,
+   "name": "Ак Барс Онлайн",
+   "color": "#00A651",
+   "category": "Банки",
+   "icon": "icons/1264479292.png"
+  },
+  {
+   "id": 1433896011,
+   "name": "БКС Банк",
+   "color": "#1E4FA3",
+   "category": "Банки",
+   "icon": "icons/1433896011.png"
+  },
+  {
+   "id": 1044155034,
+   "name": "Модульбанк",
+   "color": "#5D2E8C",
+   "category": "Банки",
+   "icon": "icons/1044155034.png"
+  },
+  {
+   "id": 1292190302,
+   "name": "Новикомбанк",
+   "color": "#004B87",
+   "category": "Банки",
+   "icon": "icons/1292190302.png"
+  },
+  {
+   "id": 1225153051,
+   "name": "Банк ДОМ.РФ",
+   "color": "#0F4C81",
+   "category": "Банки",
+   "icon": "icons/1225153051.png"
+  },
+  {
+   "id": 1187159866,
+   "name": "Зенит Онлайн",
+   "color": "#00A3E0",
+   "category": "Банки",
+   "icon": "icons/1187159866.png"
+  },
+  {
+   "id": 1241911264,
+   "name": "Сбербанк Инвестор",
+   "color": "#21A038",
+   "category": "Инвестиции",
+   "icon": "icons/1241911264.png"
+  },
+  {
+   "id": 1364026756,
+   "name": "ВТБ Мои Инвестиции",
+   "color": "#0A2896",
+   "category": "Инвестиции",
+   "icon": "icons/1364026756.png"
+  },
+  {
+   "id": 1187815798,
+   "name": "Альфа-Инвестиции",
+   "color": "#EF3124",
+   "category": "Инвестиции",
+   "icon": "icons/1187815798.png"
+  },
+  {
+   "id": 1183786286,
+   "name": "Т-Инвестиции",
+   "color": "#FFDD2D",
+   "category": "Инвестиции",
+   "icon": "icons/1183786286.png"
+  },
+  {
+   "id": 1510556600,
+   "name": "Совкомбанк Инвестиции",
+   "color": "#E4003A",
+   "category": "Инвестиции",
+   "icon": "icons/1510556600.png"
+  },
+  {
+   "id": 1522503634,
+   "name": "Газпромбанк Инвестиции",
+   "color": "#0055A5",
+   "category": "Инвестиции",
+   "icon": "icons/1522503634.png"
+  },
+  {
+   "id": 1533245658,
+   "name": "Росбанк Инвест",
+   "color": "#E2001A",
+   "category": "Инвестиции"
+  },
+  {
+   "id": 1033882791,
+   "name": "БКС Мир инвестиций",
+   "color": "#1E4FA3",
+   "category": "Инвестиции",
+   "icon": "icons/1033882791.png"
+  },
+  {
+   "id": 1146857772,
+   "name": "Альфа-Капитал",
+   "color": "#EF3124",
+   "category": "Инвестиции",
+   "icon": "icons/1146857772.png"
+  },
+  {
+   "id": 1323971242,
+   "name": "Открытие Инвестиции",
+   "color": "#00BFE6",
+   "category": "Инвестиции",
+   "icon": "icons/1323971242.png"
+  },
+  {
+   "id": 899985834,
+   "name": "СберБизнес",
+   "color": "#21A038",
+   "category": "Для бизнеса",
+   "icon": "icons/899985834.png"
+  },
+  {
+   "id": 1199445530,
+   "name": "ВТБ Бизнес Онлайн",
+   "color": "#0A2896",
+   "category": "Для бизнеса",
+   "icon": "icons/1199445530.png"
+  },
+  {
+   "id": 1031837973,
+   "name": "Т-Бизнес",
+   "color": "#FFDD2D",
+   "category": "Для бизнеса",
+   "icon": "icons/1031837973.png"
+  },
+  {
+   "id": 1139686197,
+   "name": "Совкомбанк Бизнес",
+   "color": "#E4003A",
+   "category": "Для бизнеса",
+   "icon": "icons/1139686197.png"
+  },
+  {
+   "id": 6739530834,
+   "name": "MAX",
+   "color": "#7A5AF8",
+   "category": "Соцсети и мессенджеры",
+   "icon": "icons/6739530834.png"
+  },
+  {
+   "id": 564177498,
+   "name": "ВКонтакте",
+   "color": "#0077FF",
+   "category": "Соцсети и мессенджеры",
+   "icon": "icons/564177498.png"
+  },
+  {
+   "id": 1441659687,
+   "name": "VK Мессенджер",
+   "color": "#0077FF",
+   "category": "Соцсети и мессенджеры",
+   "icon": "icons/1441659687.png"
+  },
+  {
+   "id": 6447614666,
+   "name": "VK Видео",
+   "color": "#0077FF",
+   "category": "Соцсети и мессенджеры",
+   "icon": "icons/6447614666.png"
+  },
+  {
+   "id": 1615733452,
+   "name": "VK Клипы",
+   "color": "#0077FF",
+   "category": "Соцсети и мессенджеры",
+   "icon": "icons/1615733452.png"
+  },
+  {
+   "id": 6449036810,
+   "name": "VK Знакомства",
+   "color": "#0077FF",
+   "category": "Соцсети и мессенджеры",
+   "icon": "icons/6449036810.png"
+  },
+  {
+   "id": 1219369741,
+   "name": "VK Админ",
+   "color": "#0077FF",
+   "category": "Соцсети и мессенджеры",
+   "icon": "icons/1219369741.png"
+  },
+  {
+   "id": 1634422317,
+   "name": "Яндекс Пэй",
+   "color": "#FC3F1D",
+   "category": "Сервисы",
+   "icon": "icons/1634422317.png"
+  },
+  {
+   "id": 417281773,
+   "name": "Авито",
+   "color": "#00AAFF",
+   "category": "Сервисы",
+   "icon": "icons/417281773.png"
+  },
+  {
+   "id": 511310430,
+   "name": "Почта Mail.ru",
+   "color": "#005FF9",
+   "category": "Сервисы",
+   "icon": "icons/511310430.png"
+  },
+  {
+   "id": 893068358,
+   "name": "Облако Mail.ru",
+   "color": "#005FF9",
+   "category": "Сервисы",
+   "icon": "icons/893068358.png"
+  },
+  {
+   "id": 1166642457,
+   "name": "СберМаркет",
+   "color": "#FF7B00",
+   "category": "Сервисы",
+   "icon": "icons/1166642457.png"
+  },
+  {
+   "id": 6505025679,
+   "name": "Купер",
+   "color": "#FF7B00",
+   "category": "Сервисы",
+   "icon": "icons/6505025679.png"
+  },
+  {
+   "id": 448868000,
+   "name": "Okko",
+   "color": "#5A2DD8",
+   "category": "Сервисы",
+   "icon": "icons/448868000.png"
+  },
+  {
+   "id": 1520007827,
+   "name": "Сбер Салют",
+   "color": "#21A038",
+   "category": "Сервисы",
+   "icon": "icons/1520007827.png"
+  },
+  {
+   "id": 1500004834,
+   "name": "СберАвто",
+   "color": "#21A038",
+   "category": "Сервисы",
+   "icon": "icons/1500004834.png"
+  },
+  {
+   "id": 1255182214,
+   "name": "Т-Мобайл",
+   "color": "#FFDD2D",
+   "category": "Сервисы",
+   "icon": "icons/1255182214.png"
+  },
+  {
+   "id": 529479190,
+   "name": "Clash of Clans",
+   "color": "#F5B700",
+   "category": "Игры Supercell",
+   "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ba/b9/3a/bab93a90-921d-2caf-32a6-cde63f6006d4/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/100x100bb.jpg"
+  },
+  {
+   "id": 1053012308,
+   "name": "Clash Royale",
+   "color": "#F5B700",
+   "category": "Игры Supercell",
+   "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e1/dd/c2/e1ddc25b-e234-42ac-7748-1c663d309cf9/AppIcon-0-0-1x_U007emarketing-0-7-0-85-220.png/100x100bb.jpg"
+  },
+  {
+   "id": 1229016807,
+   "name": "Brawl Stars",
+   "color": "#F5B700",
+   "category": "Игры Supercell",
+   "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/27/98/dd/2798dd4e-f772-d93b-0a82-588d3fb55302/AppIcon-0-0-1x_U007epad-0-1-85-220.png/100x100bb.jpg"
+  },
+  {
+   "id": 506627515,
+   "name": "Hay Day",
+   "color": "#F5B700",
+   "category": "Игры Supercell",
+   "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/4f/07/69/4f076947-6bf8-75a9-7bc3-a0654ea6defb/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/100x100bb.jpg"
+  },
+  {
+   "id": 672150402,
+   "name": "Boom Beach",
+   "color": "#F5B700",
+   "category": "Игры Supercell",
+   "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/14/3e/b3/143eb359-2118-2f12-a08e-dc2863b8f500/AppIcon-0-0-1x_U007epad-0-1-85-220.png/100x100bb.jpg"
+  },
+  {
+   "id": 1668983788,
+   "name": "Squad Busters",
+   "color": "#F5B700",
+   "category": "Игры Supercell",
+   "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/24/23/ce/2423ceae-25c8-5e9a-6523-9fd303247db1/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/100x100bb.jpg"
+  },
+  {
+   "id": 6474323148,
+   "name": "mo.co",
+   "color": "#F5B700",
+   "category": "Игры Supercell",
+   "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f2/c8/0a/f2c80a97-95ca-f875-fcb0-802c24e2ae4e/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/100x100bb.jpg"
+  }
+ ]
+}

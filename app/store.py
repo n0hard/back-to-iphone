@@ -1,0 +1,192 @@
+"""App Store: вход в Apple ID и скачивание IPA из истории покупок через ipatool.
+
+Apple требует для входа подпись SAP (FairPlay), которую умеет вычислять только ipatool
+(github.com/majd/ipatool, open source). Бинарник лежит в ../bin, его ставит setup_tools.py.
+Сессия Apple хранится в зашифрованном хранилище ipatool; пароль нужен ipatool для
+автоматического перелогина при истечении токена и хранится там же, а не в этом приложении.
+"""
+import json
+import os
+import secrets
+import subprocess
+import sys
+import threading
+from pathlib import Path
+
+import requests
+
+ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))  # в .exe bin/ лежит внутри
+DATA = Path(os.environ.get("APPDATA", Path.home())) / "vozvrat"
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+# iTunes Search API отвечает 403 на User-Agent python-requests
+WEB_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                             "Chrome/130.0 Safari/537.36"}
+
+
+class StoreError(Exception):
+    pass
+
+
+class NotLoggedIn(StoreError):
+    pass
+
+
+class NeedCode(StoreError):
+    """Apple требует код двухфакторной аутентификации."""
+
+
+def ipatool_path():
+    exe = ROOT / "bin" / ("ipatool.exe" if sys.platform == "win32" else "ipatool")
+    if not exe.exists():
+        raise StoreError("Не найден ipatool. Запустите start.bat (или python app/setup_tools.py)")
+    return str(exe)
+
+
+def _passphrase():
+    """Ключ для файлового хранилища ipatool (на Windows нет системной связки ключей)."""
+    key = DATA / "keychain.key"
+    if not key.exists():
+        DATA.mkdir(parents=True, exist_ok=True)
+        key.write_text(secrets.token_urlsafe(32), encoding="utf-8")
+    return key.read_text(encoding="utf-8").strip()
+
+
+def _run(args, timeout=600):
+    cmd = [ipatool_path(), *args, "--format", "json", "--non-interactive", "--keychain-passphrase", _passphrase()]
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=timeout, creationflags=NO_WINDOW)
+    except subprocess.TimeoutExpired:
+        raise StoreError("App Store не ответил вовремя, попробуйте ещё раз")
+    events = []
+    for line in (p.stdout + "\n" + p.stderr).splitlines():
+        line = line.strip()
+        if line.startswith("{"):
+            try:
+                events.append(json.loads(line))
+            except ValueError:
+                pass
+    result = next((e for e in reversed(events) if "success" in e), {})
+    # при нужном 2FA ipatool завершается с кодом 0 и лишь пишет сообщение — успех только при success: true
+    if p.returncode != 0 or result.get("success") is not True:
+        raise _error(events, p.stdout + p.stderr)
+    return result
+
+
+def _error(events, raw):
+    text = " | ".join(str(e.get("error") or e.get("message") or "") for e in events) or raw
+    t = text.lower()
+    if "auth code is required" in t or "2fa code is required" in t:
+        return NeedCode("Введите код подтверждения, который пришёл на ваши устройства Apple")
+    if "2fa code must" in t:
+        return NeedCode("Код должен состоять из 6 цифр")
+    if "invalid credentials" in t or "-5000" in t or "badlogin" in t:
+        return StoreError("Неверный Apple ID или пароль")
+    if "account is disabled" in t:
+        return StoreError("Apple ID заблокирован")
+    if "not logged in" in t or "failed to get account" in t:
+        return NotLoggedIn("Сначала войдите в Apple ID")
+    if "license is required" in t or "license required" in t or "9610" in t:
+        return StoreError("Этого приложения нет в истории покупок этого Apple ID")
+    if "paid app" in t:
+        return StoreError("Платное приложение: его можно установить, только если оно уже куплено")
+    if "temporarily unavailable" in t or "2059" in t:
+        return StoreError("Приложение недоступно для этого Apple ID (регион или удаление)")
+    lines = [l for l in text.strip().splitlines() if l.strip()]
+    return StoreError(lines[-1][:500] if lines else "Неизвестная ошибка App Store")
+
+
+# ---------- аккаунт ----------
+
+def account_info():
+    try:
+        r = _run(["auth", "info"], timeout=60)
+    except StoreError:
+        return None
+    return {"email": r.get("email", ""), "name": (r.get("name") or "").strip()}
+
+
+def login(email, password, code=""):
+    args = ["auth", "login", "--email", email, "--password", password]
+    if code:
+        args += ["--auth-code", code]
+    r = _run(args, timeout=900)  # первый вход ipatool готовит эмулятор — может занять пару минут
+    return {"email": r.get("email", email), "name": (r.get("name") or "").strip()}
+
+
+def logout():
+    try:
+        _run(["auth", "revoke"], timeout=60)
+    except StoreError:
+        pass
+
+
+# ---------- скачивание ----------
+
+def download(app_id, dest_dir, progress=None, allow_purchase=False):
+    """Скачивает IPA (уже с sinf и iTunesMetadata). Возвращает путь к файлу."""
+    dest = Path(dest_dir)
+    dest.mkdir(parents=True, exist_ok=True)
+    args = ["download", "--app-id", str(app_id), "--output", str(dest), "--platform", "iphone"]
+    if allow_purchase:
+        args.append("--purchase")
+
+    stop = threading.Event()
+
+    def watch():  # ipatool не печатает прогресс в неинтерактивном режиме — смотрим на размер файла
+        while not stop.wait(0.7):
+            files = [f for f in dest.iterdir() if f.is_file()]
+            if files and progress:
+                progress(max(f.stat().st_size for f in files))
+
+    t = threading.Thread(target=watch, daemon=True)
+    t.start()
+    try:
+        r = _run(args, timeout=3600)
+    finally:
+        stop.set()
+        t.join()
+    path = r.get("output")
+    if not path or not Path(path).exists():
+        ipas = sorted(dest.glob("*.ipa"), key=lambda f: f.stat().st_mtime)
+        if not ipas:
+            raise StoreError("ipatool не сообщил, куда сохранил файл")
+        path = str(ipas[-1])
+    return path
+
+
+# ---------- публичный поиск (iTunes Search API) ----------
+
+def search(term, limit=20):
+    # Поиск по российской витрине Apple сейчас отвечает 403 — тогда ищем в других
+    for country in ("ru", "kz", "us"):
+        r = requests.get("https://itunes.apple.com/search", headers=WEB_HEADERS, timeout=20, params={
+            "term": term, "entity": "software", "country": country, "limit": limit})
+        if r.ok:
+            return [_short(x) for x in _json(r).get("results", [])]
+    raise StoreError("Поиск App Store временно недоступен, попробуйте через минуту или введите ID")
+
+
+def lookup(app_id, country="ru"):
+    r = requests.get("https://itunes.apple.com/lookup", headers=WEB_HEADERS, params={"id": app_id, "country": country}, timeout=20)
+    res = _json(r).get("results", [])
+    return _short(res[0]) if res else None
+
+
+def _json(r):
+    try:
+        return r.json()
+    except ValueError:
+        raise StoreError("Поиск App Store временно недоступен, попробуйте через минуту или введите ID")
+
+
+def _short(x):
+    return {
+        "id": x.get("trackId"),
+        "name": x.get("trackName"),
+        "bundleId": x.get("bundleId"),
+        "icon": x.get("artworkUrl100"),
+        "seller": x.get("sellerName"),
+        "version": x.get("version"),
+        "price": x.get("price", 0),
+    }

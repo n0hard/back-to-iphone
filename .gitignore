@@ -1,0 +1,13 @@
+# сборка
+build/
+dist/
+*.spec
+
+# ipatool скачивается setup_tools.py / build.bat
+bin/
+
+# локальное
+.deps-ok
+__pycache__/
+*.pyc
+*.log

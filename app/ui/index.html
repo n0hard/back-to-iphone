@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Возврат</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #fff; --text: #16181d; --muted: #6b7280; --line: #e5e7eb;
+    --accent: #4f46e5; --accent-2: #eef2ff; --ok: #16a34a; --err: #dc2626; --warn-bg: #fff7ed;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --card: #181b21; --text: #eceef2; --muted: #9aa1ad; --line: #2a2e37;
+            --accent: #818cf8; --accent-2: #23264a; --warn-bg: #2a2116; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .logo { width: 40px; height: 40px; border-radius: 10px; background: var(--accent); color: #fff;
+          display: grid; place-items: center; font-weight: 700; font-size: 20px; }
+  h1 { font-size: 24px; margin: 0; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 16px; margin: 0 0 12px; display: flex; align-items: center; gap: 10px; }
+  .num { width: 24px; height: 24px; border-radius: 50%; background: var(--accent-2); color: var(--accent);
+         display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; }
+  .num.done { background: var(--ok); color: #fff; }
+  input[type=text], input[type=email], input[type=password] {
+    width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); font: inherit; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row > * { flex: 1 1 200px; }
+  button { padding: 10px 16px; border-radius: 10px; border: 0; background: var(--accent); color: #fff;
+           font: inherit; font-weight: 600; cursor: pointer; flex: none !important; }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  button:disabled { opacity: .5; cursor: default; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .err { color: var(--err); font-size: 14px; margin-top: 8px; min-height: 1em; }
+  .stack > * + * { margin-top: 10px; }
+  .who { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .devs { display: grid; gap: 8px; }
+  .dev { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line);
+         border-radius: 10px; cursor: pointer; }
+  .dev.sel { border-color: var(--accent); background: var(--accent-2); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+  .app { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column;
+         gap: 8px; align-items: flex-start; }
+  .icon { width: 48px; height: 48px; border-radius: 12px; background: var(--accent-2); color: #fff; display: grid;
+          place-items: center; font-weight: 700; font-size: 20px; overflow: hidden; }
+  .icon img { width: 100%; height: 100%; }
+  .app .name { font-weight: 600; line-height: 1.25; }
+  .app button { padding: 6px 12px; font-size: 13px; margin-top: auto; }
+  .act { width: 100%; margin-top: auto; }
+  .act .muted, .act .err { font-size: 12px; line-height: 1.35; margin-top: 4px; }
+  .act .err { min-height: 0; }
+  .act .ok { color: var(--ok); font-weight: 600; font-size: 13px; }
+  .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 6px 0 0; }
+  .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+  .bar.indef > div { width: 30% !important; animation: slide 1.2s infinite ease-in-out; }
+  @keyframes slide { from { margin-left: -30%; } to { margin-left: 100%; } }
+  .note { background: var(--warn-bg); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+  label.chk { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+  .hidden { display: none !important; }
+  .cat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .cat-head input { max-width: 240px; padding: 6px 10px; }
+  .cat-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 0; }
+  details summary { cursor: pointer; font-weight: 600; }
+  details p { margin: 6px 0; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="logo">↺</div><h1>Возврат</h1></header>
+  <p class="sub">Возвращает на iPhone приложения, удалённые из App Store: скачивает оригинальный IPA из истории покупок вашего Apple ID и ставит его по USB.</p>
+
+  <!-- 1. Apple ID -->
+  <section class="card">
+    <h2><span class="num" id="n1">1</span>Apple ID</h2>
+    <div id="loginBox" class="stack">
+      <p class="muted">Нужен тот Apple ID, с которого приложение когда-то скачивалось. Пароль уходит только на серверы Apple; для автоматического перелогина он хранится в зашифрованном виде на этом компьютере (ipatool). Первый вход может занять 1–3 минуты.</p>
+      <div class="row">
+        <input type="email" id="email" placeholder="Apple ID (e-mail)" autocomplete="username">
+        <input type="password" id="password" placeholder="Пароль" autocomplete="current-password">
+      </div>
+      <div id="codeRow" class="row hidden">
+        <input type="text" id="code" placeholder="Код из 6 цифр с вашего iPhone/Mac" inputmode="numeric" maxlength="6">
+      </div>
+      <button id="loginBtn">Войти</button>
+      <div class="err" id="loginErr"></div>
+    </div>
+    <div id="whoBox" class="who hidden">
+      <div><b id="whoName"></b><div class="muted" id="whoEmail"></div></div>
+      <button class="ghost" id="logoutBtn">Выйти</button>
+    </div>
+  </section>
+
+  <!-- 2. iPhone -->
+  <section class="card">
+    <h2><span class="num" id="n2">2</span>iPhone</h2>
+    <p class="muted">Подключите iPhone кабелем, разблокируйте его и нажмите «Доверять этому компьютеру».</p>
+    <div class="devs" id="devs"></div>
+    <div class="err" id="devErr"></div>
+    <button class="ghost" id="refreshDevs">Обновить список</button>
+  </section>
+
+  <!-- 3. Приложение -->
+  <section class="card">
+    <h2><span class="num" id="n3">3</span>Приложение</h2>
+    <div class="row">
+      <input type="text" id="q" placeholder="Название, App Store ID или ссылка apps.apple.com/…/id123456789">
+      <button id="searchBtn">Найти</button>
+    </div>
+    <div class="err" id="searchErr"></div>
+    <div class="grid" id="results"></div>
+    <div class="cat-head">
+      <p class="muted">Удалённые из App Store (<span id="catCount">0</span>):</p>
+      <input type="text" id="catFilter" placeholder="Фильтр каталога…">
+    </div>
+    <div id="catalog"></div>
+    <div style="margin-top:14px" class="stack">
+      <label class="chk"><input type="checkbox" id="purchase"> Если приложения нет в покупках — «купить» его (только бесплатные, доступные в App Store)</label>
+      <label class="chk"><input type="checkbox" id="keepIpa"> Сохранять скачанный IPA на компьютере</label>
+    </div>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>Вопросы</summary>
+      <p><b>Приложение не найдено в истории покупок.</b> Его нужно было хоть раз скачать с этого Apple ID до удаления из App Store. Попробуйте другой Apple ID.</p>
+      <p><b>Не приходят push-уведомления.</b> Для некоторых удалённых приложений Apple отключила пуши — это ограничение Apple.</p>
+      <p><b>Windows не видит iPhone.</b> Установите «Apple Devices» из Microsoft Store (или iTunes), переподключите кабель.</p>
+      <p><b>Обновления.</b> Удалённые приложения не обновляются через App Store. Чтобы получить свежую версию (если разработчик её выпустил), установите приложение снова.</p>
+    </details>
+  </section>
+</div>
+
+<script>
+const TOKEN = "__TOKEN__";
+const $ = id => document.getElementById(id);
+let account = null, devices = [], udid = null, busy = false;
+
+async function api(path, body) {
+  const r = await fetch(path, {
+    method: body ? "POST" : "GET",
+    headers: {"X-Token": TOKEN, "Content-Type": "application/json"},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await r.json().catch(() => ({error: "Сервер не отвечает"}));
+  if (!r.ok) { const e = new Error(data.error || r.statusText); e.data = data; throw e; }
+  return data;
+}
+
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function renderAccount() {
+  $("loginBox").classList.toggle("hidden", !!account);
+  $("whoBox").classList.toggle("hidden", !account);
+  $("n1").classList.toggle("done", !!account);
+  $("n1").textContent = account ? "✓" : "1";
+  if (account) { $("whoName").textContent = account.name || account.email; $("whoEmail").textContent = account.email; }
+}
+
+$("loginBtn").onclick = async () => {
+  $("loginErr").textContent = ""; $("loginBtn").disabled = true; $("loginBtn").textContent = "Вход… (до пары минут)";
+  try {
+    const r = await api("/api/login", {email: $("email").value, password: $("password").value, code: $("code").value});
+    account = r.account; $("password").value = ""; $("code").value = ""; $("codeRow").classList.add("hidden");
+    renderAccount();
+  } catch (e) {
+    if (e.data && e.data.needCode) { $("codeRow").classList.remove("hidden"); $("code").focus(); }
+    $("loginErr").textContent = e.message;
+  } finally { $("loginBtn").disabled = false; $("loginBtn").textContent = "Войти"; }
+};
+$("password").onkeydown = $("code").onkeydown = e => { if (e.key === "Enter") $("loginBtn").click(); };
+$("logoutBtn").onclick = async () => { account = (await api("/api/logout", {})).account; renderAccount(); };
+
+async function loadDevices() {
+  $("devErr").textContent = "";
+  try { devices = (await api("/api/devices")).devices; }
+  catch (e) { devices = []; $("devErr").textContent = e.message; }
+  if (!devices.find(d => d.udid === udid)) udid = devices[0]?.udid || null;
+  $("devs").innerHTML = devices.length ? devices.map(d => `
+    <div class="dev ${d.udid === udid ? "sel" : ""}" data-udid="${esc(d.udid)}">📱 <div><b>${esc(d.name)}</b>
+    <div class="muted">${esc(d.model)} · iOS ${esc(d.ios)}</div></div></div>`).join("")
+    : `<div class="muted">iPhone не найден</div>`;
+  $("devs").querySelectorAll(".dev").forEach(el => el.onclick = () => { udid = el.dataset.udid; loadDevices(); });
+  $("n2").classList.toggle("done", !!udid); $("n2").textContent = udid ? "✓" : "2";
+}
+$("refreshDevs").onclick = loadDevices;
+
+function appCard(a) {
+  const icon = a.icon ? `<img src="${esc(a.icon)}" alt="">` : esc((a.name || "?")[0]);
+  const style = a.icon ? "" : `style="background:${esc(a.color || "var(--accent)")}"`;
+  return `<div class="app"><div class="icon" ${style}>${icon}</div>
+    <div class="name">${esc(a.name)}</div><div class="muted">id${esc(a.id)}${a.removed ? " · нет в App Store" : ""}</div>
+    <div class="act" data-act="${esc(a.id)}" data-name="${esc(a.name)}">${actionHtml(a.id, a.name)}</div></div>`;
+}
+
+// Состояние установки по appId: {status: "run" | "done" | "error", msg, progress}
+const jobState = {};
+function actionHtml(id, name) {
+  const s = jobState[id];
+  const btn = label => `<button data-id="${esc(id)}" data-name="${esc(name)}" ${busy ? "disabled" : ""}>${label}</button>`;
+  if (!s) return btn("Установить");
+  if (s.status === "run") return `<div class="bar indef"><div></div></div><div class="muted">${esc(s.msg)}</div>`;
+  if (s.status === "done") return `<div class="ok">✓ Установлено</div><div class="muted">${esc(s.msg)}</div>`;
+  return `${btn("Повторить")}<div class="err">${esc(s.msg)}</div>`;
+}
+function updateAct(id) {
+  const s = jobState[id];
+  document.querySelectorAll(`.act[data-act="${id}"]`).forEach(el => {
+    const bar = el.querySelector(".bar");
+    if (s && s.status === "run" && bar) {  // обновляем на месте, чтобы анимация не прыгала
+      bar.classList.toggle("indef", s.progress == null);
+      bar.firstElementChild.style.width = s.progress == null ? "" : (s.progress * 100).toFixed(1) + "%";
+      el.querySelector(".muted").textContent = s.msg;
+      return;
+    }
+    el.innerHTML = actionHtml(id, el.dataset.name);
+    bindInstall(el);
+  });
+}
+function setBusy(v) {
+  busy = v;
+  document.querySelectorAll("button[data-id]").forEach(b => b.disabled = v);
+}
+let catalog = [];
+function renderCatalog() {
+  const f = $("catFilter").value.trim().toLowerCase();
+  const groups = {};
+  catalog.filter(a => !f || a.name.toLowerCase().includes(f) || String(a.id).includes(f))
+    .forEach(a => (groups[a.category || "Другое"] ||= []).push(a));
+  $("catalog").innerHTML = Object.entries(groups).map(([c, list]) =>
+    `<p class="cat-title">${esc(c)}</p><div class="grid">${list.map(appCard).join("")}</div>`).join("")
+    || `<div class="muted" style="margin-top:12px">Ничего не найдено</div>`;
+  bindInstall($("catalog"));
+}
+$("catFilter").oninput = renderCatalog;
+
+function bindInstall(root) {
+  root.querySelectorAll("button[data-id]").forEach(b => b.onclick = () => install(b.dataset.id, b.dataset.name));
+}
+
+$("searchBtn").onclick = async () => {
+  const q = $("q").value.trim(); if (!q) return;
+  $("searchErr").textContent = ""; $("results").innerHTML = `<div class="muted">Ищу…</div>`;
+  try {
+    const r = await api("/api/search?q=" + encodeURIComponent(q));
+    $("results").innerHTML = r.results.length ? r.results.map(appCard).join("") : `<div class="muted">Ничего не найдено. Удалённые приложения ищите по App Store ID.</div>`;
+    bindInstall($("results"));
+  } catch (e) { $("results").innerHTML = ""; $("searchErr").textContent = e.message; }
+};
+$("q").onkeydown = e => { if (e.key === "Enter") $("searchBtn").click(); };
+
+async function install(appId, name) {
+  if (busy) return;
+  if (!account) { alert("Сначала войдите в Apple ID (шаг 1)"); return; }
+  if (!udid) { await loadDevices(); if (!udid) { alert("Подключите iPhone (шаг 2)"); return; } }
+  setBusy(true);
+  const set = st => { jobState[appId] = st; updateAct(appId); };
+  set({status: "run", msg: "Запуск…", progress: null});
+  try {
+    const {job} = await api("/api/install", {appId, udid, purchase: $("purchase").checked, keepIpa: $("keepIpa").checked});
+    for (;;) {
+      await new Promise(r => setTimeout(r, 700));
+      const s = await api("/api/job/" + job);
+      if (s.done) {
+        if (s.relogin) { account = null; renderAccount(); }
+        setBusy(false);
+        set(s.error ? {status: "error", msg: s.error} : {status: "done", msg: (s.message || "").split("\n").slice(1).join(" ")});
+        return;
+      }
+      set({status: "run", msg: s.message || "", progress: s.progress});
+    }
+  } catch (e) {
+    setBusy(false);
+    set({status: "error", msg: e.message});
+  }
+}
+
+(async () => {
+  account = (await api("/api/state")).account; renderAccount();
+  catalog = (await api("/api/catalog")).apps;
+  $("catCount").textContent = catalog.length;
+  renderCatalog();
+  loadDevices();
+  setInterval(() => { if (!busy) loadDevices(); }, 8000);
+})();
+</script>
+</body>
+</html>
