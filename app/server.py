@@ -1,4 +1,5 @@
 """Локальный сервер: интерфейс в браузере на 127.0.0.1, всё работает только на вашем компьютере."""
+import collections
 import json
 import os
 import re
@@ -21,8 +22,10 @@ IPA_DIR = store.DATA / "ipa"
 TOKEN = secrets.token_urlsafe(24)  # защищает API от запросов со сторонних сайтов
 
 account = None  # {"email", "name"} — кэш `ipatool auth info`
-jobs = {}
+jobs = {}  # id -> задача; порядок вставки = порядок добавления
+queue = collections.deque()  # id задач, ждущих установки
 lock = threading.Lock()
+queue_ready = threading.Condition(lock)
 
 
 def parse_app_id(text):
@@ -30,7 +33,51 @@ def parse_app_id(text):
     return int(m.group(1)) if m else None
 
 
-# ---------- фоновые задачи установки ----------
+# ---------- очередь установок ----------
+
+ACTIVE = ("queued", "download", "install")
+
+
+def enqueue(app_id, name, udid, allow_purchase, keep_ipa):
+    with lock:
+        for job in jobs.values():  # повторное нажатие не ставит приложение в очередь дважды
+            if job["appId"] == app_id and job["stage"] in ACTIVE:
+                return job["id"]
+        job_id = uuid.uuid4().hex
+        jobs[job_id] = {"id": job_id, "appId": app_id, "name": name, "stage": "queued", "message": "В очереди",
+                        "progress": None, "done": False, "udid": udid, "purchase": allow_purchase, "keepIpa": keep_ipa}
+        queue.append(job_id)
+        for old in [j for j in jobs if jobs[j]["done"]][:-50]:  # не копим бесконечную историю
+            del jobs[old]
+        queue_ready.notify()
+        return job_id
+
+
+def cancel(job_id):
+    with lock:
+        job = jobs.get(job_id)
+        if not job or job_id not in queue:
+            return False
+        queue.remove(job_id)
+        job.update(stage="canceled", done=True, message="Отменено")
+        return True
+
+
+def snapshot():
+    with lock:
+        position = {job_id: i + 1 for i, job_id in enumerate(queue)}
+        return [{k: v for k, v in {**job, "position": position.get(job["id"])}.items() if k != "udid"}
+                for job in jobs.values()]
+
+
+def worker():
+    while True:
+        with lock:
+            while not queue:
+                queue_ready.wait()
+            job = jobs[queue.popleft()]
+        run_job(job["id"], job["appId"], job["udid"], job["purchase"], job["keepIpa"])
+
 
 def run_job(job_id, app_id, udid, allow_purchase, keep_ipa):
     job = jobs[job_id]
@@ -128,6 +175,8 @@ class Handler(BaseHTTPRequestHandler):
                                                                        "removed": True}]})
                 else:
                     self.send_json({"results": store.search(term)})
+            elif url.path == "/api/jobs":
+                self.send_json({"jobs": snapshot()})
             elif url.path.startswith("/api/job/"):
                 with lock:
                     self.send_json(dict(jobs.get(url.path.rsplit("/", 1)[1], {"error": "нет задачи", "done": True})))
@@ -159,11 +208,13 @@ class Handler(BaseHTTPRequestHandler):
                 app_id = parse_app_id(body.get("appId"))
                 if not app_id:
                     return self.send_json({"error": "Некорректный App Store ID"}, 400)
-                job_id = uuid.uuid4().hex
-                jobs[job_id] = {"stage": "queued", "message": "В очереди…", "progress": None, "done": False}
-                threading.Thread(target=run_job, daemon=True, args=(
-                    job_id, app_id, body.get("udid"), bool(body.get("purchase")), bool(body.get("keepIpa")))).start()
+                job_id = enqueue(app_id, str(body.get("name") or f"id{app_id}"), body.get("udid"),
+                                 bool(body.get("purchase")), bool(body.get("keepIpa")))
                 self.send_json({"job": job_id})
+            elif path == "/api/cancel":
+                if not cancel(body.get("job")):
+                    return self.send_json({"error": "Задача уже выполняется или завершена"}, 400)
+                self.send_json({"ok": True})
             else:
                 self.send_json({"error": "not found"}, 404)
         except store.NeedCode as e:
@@ -180,6 +231,7 @@ def create(port):
     global account
     account = store.account_info()
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    threading.Thread(target=worker, daemon=True).start()
     return server, f"http://127.0.0.1:{server.server_address[1]}/"
 
 

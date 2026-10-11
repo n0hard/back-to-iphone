@@ -57,6 +57,8 @@
   .act .muted, .act .err { font-size: 12px; line-height: 1.35; margin-top: 4px; }
   .act .err { min-height: 0; }
   .act .ok { color: var(--ok); font-weight: 600; font-size: 13px; }
+  .act .queued { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+  #queueInfo { font-size: 13px; color: var(--accent); margin: -4px 0 8px; min-height: 0; }
   .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 6px 0 0; }
   .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
   .bar.indef > div { width: 30% !important; animation: slide 1.2s infinite ease-in-out; }
@@ -109,6 +111,7 @@
   <!-- 3. Приложение -->
   <section class="card">
     <h2><span class="num" id="n3">3</span>Приложение</h2>
+    <div id="queueInfo"></div>
     <div class="row">
       <input type="text" id="q" placeholder="Название, App Store ID или ссылка apps.apple.com/…/id123456789">
       <button id="searchBtn">Найти</button>
@@ -140,7 +143,7 @@
 <script>
 const TOKEN = "__TOKEN__";
 const $ = id => document.getElementById(id);
-let account = null, devices = [], udid = null, busy = false;
+let account = null, devices = [], udid = null;
 
 async function api(path, body) {
   const r = await fetch(path, {
@@ -199,33 +202,36 @@ function appCard(a) {
     <div class="act" data-act="${esc(a.id)}" data-name="${esc(a.name)}">${actionHtml(a.id, a.name)}</div></div>`;
 }
 
-// Состояние установки по appId: {status: "run" | "done" | "error", msg, progress}
+// Задачи установки по appId — то, что вернул /api/jobs (последняя задача для каждого приложения)
 const jobState = {};
+const shown = {};  // что сейчас нарисовано в карточке, чтобы не перерисовывать без изменений
+const RUNNING = ["download", "install"];
 function actionHtml(id, name) {
   const s = jobState[id];
-  const btn = label => `<button data-id="${esc(id)}" data-name="${esc(name)}" ${busy ? "disabled" : ""}>${label}</button>`;
-  if (!s) return btn("Установить");
-  if (s.status === "run") return `<div class="bar indef"><div></div></div><div class="muted">${esc(s.msg)}</div>`;
-  if (s.status === "done") return `<div class="ok">✓ Установлено</div><div class="muted">${esc(s.msg)}</div>`;
-  return `${btn("Повторить")}<div class="err">${esc(s.msg)}</div>`;
+  const btn = label => `<button data-id="${esc(id)}" data-name="${esc(name)}">${label}</button>`;
+  if (!s || s.stage === "canceled") return btn("Установить");
+  if (s.stage === "queued") return `<div class="queued">В очереди · №${s.position || "?"}</div>
+    <button class="ghost" data-cancel="${esc(s.id)}">Отменить</button>`;
+  if (RUNNING.includes(s.stage)) return `<div class="bar indef"><div></div></div><div class="muted">${esc(s.message)}</div>`;
+  if (s.stage === "done") return `<div class="ok">✓ Установлено</div><div class="muted">${esc((s.message || "").split("\n").slice(1).join(" "))}</div>`;
+  return `${btn("Повторить")}<div class="err">${esc(s.error || s.message)}</div>`;
 }
 function updateAct(id) {
   const s = jobState[id];
+  const key = s ? `${s.id}:${s.stage}:${s.position}` : "";
   document.querySelectorAll(`.act[data-act="${id}"]`).forEach(el => {
     const bar = el.querySelector(".bar");
-    if (s && s.status === "run" && bar) {  // обновляем на месте, чтобы анимация не прыгала
+    if (s && RUNNING.includes(s.stage) && bar && el.dataset.key === key) {  // обновляем на месте, чтобы анимация не прыгала
       bar.classList.toggle("indef", s.progress == null);
       bar.firstElementChild.style.width = s.progress == null ? "" : (s.progress * 100).toFixed(1) + "%";
-      el.querySelector(".muted").textContent = s.msg;
+      el.querySelector(".muted").textContent = s.message;
       return;
     }
+    if (el.dataset.key === key && el.innerHTML) return;
+    el.dataset.key = key;
     el.innerHTML = actionHtml(id, el.dataset.name);
     bindInstall(el);
   });
-}
-function setBusy(v) {
-  busy = v;
-  document.querySelectorAll("button[data-id]").forEach(b => b.disabled = v);
 }
 let catalog = [];
 function renderCatalog() {
@@ -242,6 +248,11 @@ $("catFilter").oninput = renderCatalog;
 
 function bindInstall(root) {
   root.querySelectorAll("button[data-id]").forEach(b => b.onclick = () => install(b.dataset.id, b.dataset.name));
+  root.querySelectorAll("button[data-cancel]").forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try { await api("/api/cancel", {job: b.dataset.cancel}); } catch (e) { alert(e.message); }
+    poll();
+  });
 }
 
 $("searchBtn").onclick = async () => {
@@ -256,29 +267,32 @@ $("searchBtn").onclick = async () => {
 $("q").onkeydown = e => { if (e.key === "Enter") $("searchBtn").click(); };
 
 async function install(appId, name) {
-  if (busy) return;
   if (!account) { alert("Сначала войдите в Apple ID (шаг 1)"); return; }
   if (!udid) { await loadDevices(); if (!udid) { alert("Подключите iPhone (шаг 2)"); return; } }
-  setBusy(true);
-  const set = st => { jobState[appId] = st; updateAct(appId); };
-  set({status: "run", msg: "Запуск…", progress: null});
   try {
-    const {job} = await api("/api/install", {appId, udid, purchase: $("purchase").checked, keepIpa: $("keepIpa").checked});
-    for (;;) {
-      await new Promise(r => setTimeout(r, 700));
-      const s = await api("/api/job/" + job);
-      if (s.done) {
-        if (s.relogin) { account = null; renderAccount(); }
-        setBusy(false);
-        set(s.error ? {status: "error", msg: s.error} : {status: "done", msg: (s.message || "").split("\n").slice(1).join(" ")});
-        return;
-      }
-      set({status: "run", msg: s.message || "", progress: s.progress});
-    }
+    await api("/api/install", {appId, name, udid, purchase: $("purchase").checked, keepIpa: $("keepIpa").checked});
   } catch (e) {
-    setBusy(false);
-    set({status: "error", msg: e.message});
+    jobState[appId] = {id: "local", stage: "error", error: e.message}; updateAct(appId);
+    return;
   }
+  poll();
+}
+
+// Один общий опрос очереди: часто, пока что-то ставится, и редко в простое
+let pollTimer = null, handledRelogin = new Set();
+function hasActive() { return Object.values(jobState).some(s => s.stage === "queued" || RUNNING.includes(s.stage)); }
+async function poll() {
+  clearTimeout(pollTimer);
+  try {
+    const {jobs} = await api("/api/jobs");
+    for (const j of jobs) jobState[j.appId] = j;  // jobs идут в порядке добавления — остаётся последняя
+    Object.keys(jobState).forEach(updateAct);
+    for (const j of jobs) if (j.relogin && !handledRelogin.has(j.id)) { handledRelogin.add(j.id); account = null; renderAccount(); }
+    const running = jobs.find(j => RUNNING.includes(j.stage)), waiting = jobs.filter(j => j.stage === "queued").length;
+    $("queueInfo").textContent = running || waiting
+      ? `Очередь: ${running ? "ставится «" + running.name + "»" : "запуск…"}${waiting ? ", ждут " + waiting : ""}` : "";
+  } catch (e) { /* сервер занят — попробуем позже */ }
+  pollTimer = setTimeout(poll, hasActive() ? 800 : 4000);
 }
 
 (async () => {
@@ -287,7 +301,8 @@ async function install(appId, name) {
   $("catCount").textContent = catalog.length;
   renderCatalog();
   loadDevices();
-  setInterval(() => { if (!busy) loadDevices(); }, 8000);
+  poll();
+  setInterval(() => { if (!hasActive()) loadDevices(); }, 8000);  // во время установки iPhone не дёргаем
 })();
 </script>
 </body>
