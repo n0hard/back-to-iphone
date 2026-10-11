@@ -81,7 +81,7 @@ begin
   if (CurUninstallStep = usPostUninstall) and
      (SuppressibleMsgBox('Удалить также вход в Apple ID и сохранённые IPA?', mbConfirmation, MB_YESNO, IDNO) = IDYES) then
   begin
+    { сессия ipatool «Возврата» лежит внутри vozvrat; общий ~/.ipatool принадлежит другим программам }
     DelTree(ExpandConstant('{userappdata}\vozvrat'), True, True, True);
-    DelTree(ExpandConstant('{%USERPROFILE}\.ipatool'), True, True, True);
   end;
 end;

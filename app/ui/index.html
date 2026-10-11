@@ -57,6 +57,17 @@
   .act .muted, .act .err { font-size: 12px; line-height: 1.35; margin-top: 4px; }
   .act .err { min-height: 0; }
   .act .ok { color: var(--ok); font-weight: 600; font-size: 13px; }
+  .link { background: none; border: 0; padding: 0; margin-top: 6px; color: var(--accent); font-size: 12px;
+          font-weight: 500; cursor: pointer; display: block; }
+  .link:hover { text-decoration: underline; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: grid; place-items: center; padding: 16px; z-index: 10; }
+  .modal-box { background: var(--card); border: 1px solid var(--line); border-radius: 14px; width: min(440px, 100%);
+               max-height: 80vh; display: flex; flex-direction: column; }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .modal-head b { font-size: 15px; }
+  .modal-body { overflow: auto; padding: 8px 16px 16px; }
+  .ver { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .ver button { padding: 6px 12px; font-size: 13px; }
   .act .queued { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
   #queueInfo { font-size: 13px; color: var(--accent); margin: -4px 0 8px; min-height: 0; }
   .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 6px 0 0; }
@@ -140,6 +151,19 @@
   </section>
 </div>
 
+<div class="modal hidden" id="verModal">
+  <div class="modal-box">
+    <div class="modal-head"><b id="verTitle">Версии</b><button class="ghost" id="verClose">✕</button></div>
+    <div class="modal-body">
+      <p class="muted" style="margin:6px 0 4px">Пригодится, если новая версия не поддерживает iOS вашего iPhone.
+        Доступны только версии, которые Apple ещё хранит.</p>
+      <div id="verList"></div>
+      <div class="err" id="verErr"></div>
+      <button class="ghost hidden" id="verMore" style="margin-top:10px">Показать ещё</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const TOKEN = "__TOKEN__";
 const $ = id => document.getElementById(id);
@@ -195,7 +219,7 @@ async function loadDevices() {
 $("refreshDevs").onclick = loadDevices;
 
 function appCard(a) {
-  const icon = a.icon ? `<img src="${esc(a.icon)}" alt="">` : esc((a.name || "?")[0]);
+  const icon = a.icon ? `<img src="${esc(a.icon)}" alt="" loading="lazy">` : esc((a.name || "?")[0]);
   const style = a.icon ? "" : `style="background:${esc(a.color || "var(--accent)")}"`;
   return `<div class="app"><div class="icon" ${style}>${icon}</div>
     <div class="name">${esc(a.name)}</div><div class="muted">id${esc(a.id)}${a.removed ? " · нет в App Store" : ""}</div>
@@ -209,12 +233,14 @@ const RUNNING = ["download", "install"];
 function actionHtml(id, name) {
   const s = jobState[id];
   const btn = label => `<button data-id="${esc(id)}" data-name="${esc(name)}">${label}</button>`;
-  if (!s || s.stage === "canceled") return btn("Установить");
+  const verLink = `<button class="link" data-versions="${esc(id)}" data-name="${esc(name)}">Другая версия…</button>`;
+  if (!s || s.stage === "canceled") return btn("Установить") + verLink;
   if (s.stage === "queued") return `<div class="queued">В очереди · №${s.position || "?"}</div>
     <button class="ghost" data-cancel="${esc(s.id)}">Отменить</button>`;
-  if (RUNNING.includes(s.stage)) return `<div class="bar indef"><div></div></div><div class="muted">${esc(s.message)}</div>`;
-  if (s.stage === "done") return `<div class="ok">✓ Установлено</div><div class="muted">${esc((s.message || "").split("\n").slice(1).join(" "))}</div>`;
-  return `${btn("Повторить")}<div class="err">${esc(s.error || s.message)}</div>`;
+  if (RUNNING.includes(s.stage)) return `<div class="bar indef"><div></div></div><div class="muted">${esc(s.message)}</div>`
+    + (s.versionLabel ? `<div class="muted">Версия ${esc(s.versionLabel)}</div>` : "");
+  if (s.stage === "done") return `<div class="ok">✓ Установлено</div><div class="muted">${esc((s.message || "").split("\n").slice(1).join(" "))}</div>` + verLink;
+  return `${btn("Повторить")}<div class="err">${esc(s.error || s.message)}</div>` + verLink;
 }
 function updateAct(id) {
   const s = jobState[id];
@@ -248,6 +274,7 @@ $("catFilter").oninput = renderCatalog;
 
 function bindInstall(root) {
   root.querySelectorAll("button[data-id]").forEach(b => b.onclick = () => install(b.dataset.id, b.dataset.name));
+  root.querySelectorAll("button[data-versions]").forEach(b => b.onclick = () => openVersions(b.dataset.versions, b.dataset.name));
   root.querySelectorAll("button[data-cancel]").forEach(b => b.onclick = async () => {
     b.disabled = true;
     try { await api("/api/cancel", {job: b.dataset.cancel}); } catch (e) { alert(e.message); }
@@ -266,11 +293,48 @@ $("searchBtn").onclick = async () => {
 };
 $("q").onkeydown = e => { if (e.key === "Enter") $("searchBtn").click(); };
 
-async function install(appId, name) {
+// Выбор версии: список externalVersionId с номерами версий и датами, порциями по 10
+let verApp = null, verOffset = 0;
+async function openVersions(appId, name) {
+  if (!account) { alert("Сначала войдите в Apple ID (шаг 1)"); return; }
+  verApp = {appId, name}; verOffset = 0;
+  $("verTitle").textContent = name; $("verList").innerHTML = ""; $("verErr").textContent = "";
+  $("verModal").classList.remove("hidden");
+  await loadVersions();
+}
+async function loadVersions() {
+  const app = verApp;
+  $("verMore").classList.add("hidden");
+  $("verList").insertAdjacentHTML("beforeend", `<div class="muted" id="verLoading" style="padding:8px 0">Загружаю версии из App Store…</div>`);
+  try {
+    const r = await api(`/api/versions?id=${app.appId}&offset=${verOffset}&limit=10`);
+    if (verApp !== app) return;  // окно уже закрыли или открыли другое приложение
+    $("verLoading")?.remove();
+    if (!r.total) { $("verErr").textContent = "Apple не вернул ни одной версии"; return; }
+    $("verList").insertAdjacentHTML("beforeend", r.versions.map((v, i) => `<div class="ver"><div><b>${esc(v.version)}</b>
+      ${verOffset + i === 0 ? '<span class="muted">· последняя</span>' : ""}<div class="muted">${esc(v.date)}</div></div>
+      <button data-ver="${esc(v.id)}" data-label="${esc(v.version)}">Установить</button></div>`).join(""));
+    $("verList").querySelectorAll("button[data-ver]").forEach(b => b.onclick = () => {
+      closeVersions(); install(app.appId, app.name, b.dataset.ver, b.dataset.label);
+    });
+    verOffset += r.versions.length;
+    $("verMore").classList.toggle("hidden", verOffset >= r.total);
+  } catch (e) {
+    $("verLoading")?.remove();
+    if (verApp === app) $("verErr").textContent = e.message;
+  }
+}
+function closeVersions() { verApp = null; $("verModal").classList.add("hidden"); }
+$("verMore").onclick = loadVersions;
+$("verClose").onclick = closeVersions;
+$("verModal").onclick = e => { if (e.target === $("verModal")) closeVersions(); };
+
+async function install(appId, name, versionId, versionLabel) {
   if (!account) { alert("Сначала войдите в Apple ID (шаг 1)"); return; }
   if (!udid) { await loadDevices(); if (!udid) { alert("Подключите iPhone (шаг 2)"); return; } }
   try {
-    await api("/api/install", {appId, name, udid, purchase: $("purchase").checked, keepIpa: $("keepIpa").checked});
+    await api("/api/install", {appId, name, udid, purchase: $("purchase").checked, keepIpa: $("keepIpa").checked,
+                               versionId, versionLabel});
   } catch (e) {
     jobState[appId] = {id: "local", stage: "error", error: e.message}; updateAct(appId);
     return;

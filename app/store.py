@@ -4,6 +4,8 @@ Apple требует для входа подпись SAP (FairPlay), котор
 (github.com/majd/ipatool, open source). Бинарник лежит в ../bin, его ставит setup_tools.py.
 Сессия Apple хранится в зашифрованном хранилище ipatool; пароль нужен ipatool для
 автоматического перелогина при истечении токена и хранится там же, а не в этом приложении.
+Хранилище лежит в своей папке (IPATOOL_HOME), а не в общем ~/.ipatool: туда же пишут другие
+программы на ipatool (например, IPA_Downloader) своим ключом, и сессии портили бы друг друга.
 """
 import json
 import os
@@ -11,12 +13,15 @@ import secrets
 import subprocess
 import sys
 import threading
-from pathlib import Path
+import zipfile
+import plistlib
+from pathlib import Path, PurePosixPath
 
 import requests
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))  # в .exe bin/ лежит внутри
 DATA = Path(os.environ.get("APPDATA", Path.home())) / "vozvrat"
+IPATOOL_HOME = DATA / "ipatool-home"  # ipatool кладёт состояние в <домашняя папка>/.ipatool
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 # iTunes Search API отвечает 403 на User-Agent python-requests
 WEB_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -53,9 +58,11 @@ def _passphrase():
 
 def _run(args, timeout=600):
     cmd = [ipatool_path(), *args, "--format", "json", "--non-interactive", "--keychain-passphrase", _passphrase()]
+    IPATOOL_HOME.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, "USERPROFILE": str(IPATOOL_HOME), "HOME": str(IPATOOL_HOME)}
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=timeout, creationflags=NO_WINDOW)
+                           timeout=timeout, creationflags=NO_WINDOW, env=env)
     except subprocess.TimeoutExpired:
         raise StoreError("App Store не ответил вовремя, попробуйте ещё раз")
     events = []
@@ -123,11 +130,14 @@ def logout():
 
 # ---------- скачивание ----------
 
-def download(app_id, dest_dir, progress=None, allow_purchase=False):
-    """Скачивает IPA (уже с sinf и iTunesMetadata). Возвращает путь к файлу."""
+def download(app_id, dest_dir, progress=None, allow_purchase=False, version_id=None):
+    """Скачивает IPA (уже с sinf и iTunesMetadata). Возвращает путь к файлу.
+    version_id — externalVersionId из list_versions; без него берётся последняя версия."""
     dest = Path(dest_dir)
     dest.mkdir(parents=True, exist_ok=True)
     args = ["download", "--app-id", str(app_id), "--output", str(dest), "--platform", "iphone"]
+    if version_id:
+        args += ["--external-version-id", str(version_id)]
     if allow_purchase:
         args.append("--purchase")
 
@@ -153,6 +163,38 @@ def download(app_id, dest_dir, progress=None, allow_purchase=False):
             raise StoreError("ipatool не сообщил, куда сохранил файл")
         path = str(ipas[-1])
     return path
+
+
+# ---------- версии ----------
+
+def list_versions(app_id):
+    """externalVersionId всех версий, от новых к старым."""
+    r = _run(["list-versions", "--app-id", str(app_id), "--platform", "iphone"], timeout=300)
+    ids = [str(v) for v in r.get("externalVersionIdentifiers") or []]
+    return ids[::-1]  # Apple отдаёт от старых к новым
+
+
+def version_metadata(app_id, version_id):
+    r = _run(["get-version-metadata", "--app-id", str(app_id), "--external-version-id", str(version_id),
+              "--platform", "iphone"], timeout=300)
+    return {"id": str(version_id), "version": r.get("displayVersion") or "?", "date": (r.get("releaseDate") or "")[:10]}
+
+
+def ipa_requirements(path):
+    """Минимальная iOS и поддерживаемые устройства из Info.plist внутри IPA."""
+    with zipfile.ZipFile(path) as z:
+        name = next((n for n in z.namelist() if len(PurePosixPath(n).parts) == 3
+                     and n.startswith("Payload/") and n.endswith(".app/Info.plist")), None)
+        if not name:
+            return {}
+        info = plistlib.loads(z.read(name))
+    return {"minimumOS": str(info.get("MinimumOSVersion") or ""), "families": info.get("UIDeviceFamily") or [],
+            "version": str(info.get("CFBundleShortVersionString") or ""), "name": info.get("CFBundleDisplayName")
+            or info.get("CFBundleName") or ""}
+
+
+def version_tuple(v):
+    return tuple(int(x) for x in str(v).split(".")[:3] if x.isdigit()) or (0,)
 
 
 # ---------- публичный поиск (iTunes Search API) ----------

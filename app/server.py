@@ -9,6 +9,7 @@ import sys
 import threading
 import traceback
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -38,14 +39,15 @@ def parse_app_id(text):
 ACTIVE = ("queued", "download", "install")
 
 
-def enqueue(app_id, name, udid, allow_purchase, keep_ipa):
+def enqueue(app_id, name, udid, allow_purchase, keep_ipa, version_id=None, version_label=None):
     with lock:
         for job in jobs.values():  # повторное нажатие не ставит приложение в очередь дважды
             if job["appId"] == app_id and job["stage"] in ACTIVE:
                 return job["id"]
         job_id = uuid.uuid4().hex
         jobs[job_id] = {"id": job_id, "appId": app_id, "name": name, "stage": "queued", "message": "В очереди",
-                        "progress": None, "done": False, "udid": udid, "purchase": allow_purchase, "keepIpa": keep_ipa}
+                        "progress": None, "done": False, "udid": udid, "purchase": allow_purchase, "keepIpa": keep_ipa,
+                        "versionId": version_id, "versionLabel": version_label}
         queue.append(job_id)
         for old in [j for j in jobs if jobs[j]["done"]][:-50]:  # не копим бесконечную историю
             del jobs[old]
@@ -76,11 +78,24 @@ def worker():
             while not queue:
                 queue_ready.wait()
             job = jobs[queue.popleft()]
-        run_job(job["id"], job["appId"], job["udid"], job["purchase"], job["keepIpa"])
+        run_job(job)
 
 
-def run_job(job_id, app_id, udid, allow_purchase, keep_ipa):
-    job = jobs[job_id]
+def check_compatible(ipa, udid):
+    """Не ставим то, что iPhone всё равно отклонит: понятная ошибка вместо ошибки installd."""
+    req = store.ipa_requirements(ipa)
+    if req.get("families") and 1 not in req["families"]:
+        raise device.DeviceError("Эта версия приложения только для iPad")
+    dev = next((d for d in device.list_devices() if d["udid"] == udid), None) if udid else None
+    if dev and req.get("minimumOS") and store.version_tuple(dev["ios"]) < store.version_tuple(req["minimumOS"]):
+        raise device.DeviceError(f"Версии {req.get('version') or ''} нужна iOS {req['minimumOS']} или новее, "
+                                 f"а на iPhone iOS {dev['ios']}. Выберите более старую версию приложения")
+    return req
+
+
+def run_job(job):
+    job_id, app_id, udid = job["id"], job["appId"], job["udid"]
+    allow_purchase, keep_ipa = job["purchase"], job["keepIpa"]
     work = IPA_DIR / job_id
 
     def update(**kw):
@@ -92,13 +107,16 @@ def run_job(job_id, app_id, udid, allow_purchase, keep_ipa):
 
     try:
         update(stage="download", message="Запрос к App Store…")
-        path = Path(store.download(app_id, work, on_progress, allow_purchase))
+        path = Path(store.download(app_id, work, on_progress, allow_purchase, job.get("versionId")))
+        update(message="Проверка совместимости с iPhone…")
+        req = check_compatible(path, udid)
         update(stage="install", message="Установка на iPhone… Не отключайте кабель и не блокируйте экран")
         device.install(udid, str(path))
         if keep_ipa:
             os.replace(path, IPA_DIR / path.name)
         update(stage="done", done=True, progress=1, message=f"Готово: {path.stem} установлено на iPhone"
-               + (f"\nIPA сохранён: {IPA_DIR / path.name}" if keep_ipa else ""))
+               + f"\nВерсия {req.get('version') or '?'}"
+               + (f", IPA сохранён: {IPA_DIR / path.name}" if keep_ipa else ""))
     except store.NotLoggedIn as e:
         global account
         account = None
@@ -110,6 +128,33 @@ def run_job(job_id, app_id, udid, allow_purchase, keep_ipa):
         update(stage="error", done=True, error=f"{type(e).__name__}: {e}")
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+# ---------- версии приложений ----------
+
+version_ids = {}  # app_id -> [externalVersionId], от новых к старым
+version_meta = {}  # (app_id, version_id) -> {"id", "version", "date"}
+
+
+def versions(app_id, offset, limit):
+    if not app_id:
+        raise store.StoreError("Некорректный App Store ID")
+    if app_id not in version_ids:
+        version_ids[app_id] = store.list_versions(app_id)
+    ids = version_ids[app_id][offset:offset + limit]
+    missing = [v for v in ids if (app_id, v) not in version_meta]
+    with ThreadPoolExecutor(4) as pool:  # каждая версия — отдельный запрос к Apple
+        for v, meta in zip(missing, pool.map(lambda v: _safe_meta(app_id, v), missing)):
+            version_meta[(app_id, v)] = meta
+    return {"total": len(version_ids[app_id]), "offset": offset,
+            "versions": [version_meta[(app_id, v)] for v in ids]}
+
+
+def _safe_meta(app_id, version_id):
+    try:
+        return store.version_metadata(app_id, version_id)
+    except store.StoreError:
+        return {"id": version_id, "version": "?", "date": ""}
 
 
 # ---------- HTTP ----------
@@ -175,6 +220,8 @@ class Handler(BaseHTTPRequestHandler):
                                                                        "removed": True}]})
                 else:
                     self.send_json({"results": store.search(term)})
+            elif url.path == "/api/versions":
+                self.send_json(versions(parse_app_id(q.get("id")), int(q.get("offset", 0)), int(q.get("limit", 15))))
             elif url.path == "/api/jobs":
                 self.send_json({"jobs": snapshot()})
             elif url.path.startswith("/api/job/"):
@@ -209,7 +256,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not app_id:
                     return self.send_json({"error": "Некорректный App Store ID"}, 400)
                 job_id = enqueue(app_id, str(body.get("name") or f"id{app_id}"), body.get("udid"),
-                                 bool(body.get("purchase")), bool(body.get("keepIpa")))
+                                 bool(body.get("purchase")), bool(body.get("keepIpa")),
+                                 body.get("versionId"), body.get("versionLabel"))
                 self.send_json({"job": job_id})
             elif path == "/api/cancel":
                 if not cancel(body.get("job")):
