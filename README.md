@@ -189,7 +189,7 @@ git clone https://github.com/n0hard/back-to-iphone.git
 собирать под другую ОС. Нужен Python 3.11+:
 
 ```bash
-python -m pip install -r requirements.txt pyinstaller
+python -m pip install --only-binary cryptography -r requirements.txt pyinstaller
 ```
 
 ```bash
