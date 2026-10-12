@@ -29,12 +29,61 @@ def sh(*cmd, **kw):
     subprocess.run(list(map(str, cmd)), check=True, **kw)
 
 
+SKIP_LICENSES = {"pip", "setuptools", "wheel"}  # инструменты установки, в программу не попадают
+
+
+def licenses():
+    """Папка с лицензиями для сборки: GPL-3.0 проекта, ipatool и всех Python-пакетов окружения сборки.
+
+    pymobiledevice3 распространяется под GPL-3.0, поэтому и сборка с ним идёт под GPL-3.0, а тексты
+    лицензий всех вложенных компонентов должны быть внутри неё. Список собирается из метаданных
+    установленных пакетов, чтобы не устаревать при смене зависимостей.
+    """
+    from importlib import metadata
+
+    out = BUILD / "licenses"
+    shutil.rmtree(out, ignore_errors=True)
+    out.mkdir(parents=True)
+    shutil.copy(ROOT / "LICENSE", out / "LICENSE-Vozvrat-GPL-3.0.txt")
+    shutil.copy(PKG / "licenses" / "ipatool-MIT.txt", out / "ipatool-MIT.txt")
+
+    parts = ["Сторонние компоненты в сборке «Возврата» и их лицензии.\n"
+             "Исходный код «Возврата»: https://github.com/n0hard/back-to-iphone\n"
+             "ipatool: https://github.com/majd/ipatool (MIT, текст в ipatool-MIT.txt)\n"]
+    minor = f"python{sys.version_info[0]}.{sys.version_info[1]}"
+    py_license = next((p for p in (Path(sys.base_prefix) / "LICENSE.txt", Path(sys.base_prefix) / "lib" / minor / "LICENSE.txt")
+                       if p.exists()), None)
+    parts.append(f"\n{'=' * 78}\nPython {platform.python_version()} (PSF License)\n{'=' * 78}\n"
+                 + (py_license.read_text(encoding="utf-8", errors="replace") if py_license
+                    else "https://docs.python.org/3/license.html\n"))
+    dists = {d.metadata["Name"].lower(): d for d in metadata.distributions() if d.metadata["Name"]}
+    for name in sorted(dists):
+        if name in SKIP_LICENSES:
+            continue
+        d = dists[name]
+        meta = d.metadata
+        classifiers = [c.split(" :: ")[-1] for c in meta.get_all("Classifier") or [] if c.startswith("License ::")]
+        kind = (meta.get("License-Expression") or (meta.get("License") or "").strip().split("\n")[0][:80]
+                or ", ".join(classifiers) or "см. текст ниже")
+        texts = []
+        for f in d.files or []:
+            if f.name.upper().startswith(("LICENSE", "LICENCE", "COPYING", "NOTICE", "AUTHORS")):
+                try:
+                    texts.append(f"--- {f.name} ---\n" + Path(f.locate()).read_bytes().decode("utf-8", "replace").strip())
+                except OSError:
+                    pass
+        url = meta.get("Home-page") or next((u.split(", ", 1)[-1] for u in meta.get_all("Project-URL") or []), "")
+        parts.append(f"\n{'=' * 78}\n{meta['Name']} {d.version} ({kind})\n{url}\n{'=' * 78}\n"
+                     + ("\n\n".join(texts) if texts else "Текст лицензии в пакете не найден, см. страницу проекта.") + "\n")
+    (out / "THIRD-PARTY.txt").write_text("".join(parts), encoding="utf-8")
+    return out
+
+
 def pyinstaller():
     import PyInstaller.__main__
 
     ipatool = ROOT / "bin" / ("ipatool.exe" if WIN else "ipatool")
-    if not ipatool.exists():
-        sh(sys.executable, ROOT / "app" / "setup_tools.py")
+    sh(sys.executable, ROOT / "app" / "setup_tools.py")  # ставит закреплённую версию, если сейчас стоит другая
     sep = os.pathsep
     icon = PKG / ("icon.ico" if WIN else "icon.icns" if MAC else "icon.png")
     args = [
@@ -42,6 +91,7 @@ def pyinstaller():
         "--add-data", f"{ROOT / 'app' / 'ui'}{sep}ui",
         "--add-data", f"{ROOT / 'app' / 'catalog.json'}{sep}.",
         "--add-binary", f"{ipatool}{sep}bin",
+        "--add-data", f"{licenses()}{sep}licenses",
         "--collect-all", "pymobiledevice3",
         "--collect-submodules", "rich",  # rich грузит таблицы Unicode динамически — без этого падают справка и ошибки pmd3
         "--paths", str(ROOT / "app"),

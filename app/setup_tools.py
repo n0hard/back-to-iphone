@@ -1,7 +1,14 @@
-"""Скачивает ipatool (github.com/majd/ipatool) в ../bin и проверяет SHA-256 из официального релиза."""
+"""Скачивает ipatool (github.com/majd/ipatool) в ../bin и проверяет SHA-256.
+
+Версия и контрольные суммы закреплены здесь, а не берутся из «последнего» релиза: программа разбирает
+JSON-вывод ipatool, и новая версия с другим форматом сломала бы сборку без изменений в нашем коде.
+Сумма из репозитория защищает и от подмены файла в релизе, а не только от повреждения при скачивании.
+
+Чтобы обновить ipatool: поменяйте VERSION и SHA256 (суммы — из файлов *.sha256sum релиза,
+сверьте их с sha256 скачанных архивов), соберите программу и проверьте вход и установку.
+"""
 import hashlib
 import io
-import os
 import platform
 import sys
 import tarfile
@@ -10,7 +17,16 @@ from pathlib import Path
 import requests
 
 BIN = Path(__file__).resolve().parent.parent / "bin"
-REPO = "majd/ipatool"
+VERSION = "2.7.0"
+URL = "https://github.com/majd/ipatool/releases/download/v{v}/ipatool-{v}-{system}-{arch}.tar.gz"
+SHA256 = {
+    ("windows", "amd64"): "b729608716908be287c2e6972f9e8cd05f879810ae5d182fc856c9e57cca0dd5",
+    ("windows", "arm64"): "85ab35a268b47e1729412178063fe11621cae1135f33d3b9ab5233d436bf2562",
+    ("macos", "amd64"): "05f48994d8b3cfefe7ea1172a0ac0b28715888e9df0af38cf3e490d2ed592263",
+    ("macos", "arm64"): "5ae100d4520cf4b3f4374239e5925a9ad9a8dc02abc16bae27479e7ae99aca33",
+    ("linux", "amd64"): "68372de9743d468296f2dba5b413a3e7df56ad0c85b8d0f4f0f6c9b8b53a54e8",
+    ("linux", "arm64"): "133c3fb754bafcd61698ba6047b48096c7033345529f57d7a83d281f8a403c23",
+}
 
 
 def target():
@@ -22,26 +38,27 @@ def target():
 def main():
     system, arch = target()
     exe = BIN / ("ipatool.exe" if system == "windows" else "ipatool")
-    if exe.exists() and "--force" not in sys.argv:
-        print(f"ipatool уже установлен: {exe}")
+    marker = BIN / "ipatool.version"  # иначе после смены VERSION у разработчика остался бы старый ipatool
+    if exe.exists() and marker.exists() and marker.read_text().strip() == VERSION and "--force" not in sys.argv:
+        print(f"ipatool {VERSION} уже установлен: {exe}")
         return
-    token = os.environ.get("GITHUB_TOKEN")  # в CI без токена легко упереться в лимит API GitHub
-    headers = {"Authorization": f"Bearer {token}"} if token else {}
-    rel = requests.get(f"https://api.github.com/repos/{REPO}/releases/latest", headers=headers, timeout=30).json()
-    suffix = f"-{system}-{arch}.tar.gz"
-    assets = {a["name"]: a["browser_download_url"] for a in rel["assets"]}
-    name = next(n for n in assets if n.endswith(suffix))
-    print(f"Скачиваю {name} ({rel['tag_name']})…")
-    data = requests.get(assets[name], timeout=300).content
-    expected = requests.get(assets[name + ".sha256sum"], timeout=30).text.split()[0].lower()
+    expected = SHA256.get((system, arch))
+    if not expected:
+        sys.exit(f"Нет сборки ipatool {VERSION} для {system}-{arch}")
+    url = URL.format(v=VERSION, system=system, arch=arch)
+    print(f"Скачиваю ipatool {VERSION} ({system}-{arch})…")
+    r = requests.get(url, timeout=300)
+    r.raise_for_status()
+    data = r.content
     actual = hashlib.sha256(data).hexdigest()
     if actual != expected:
-        sys.exit(f"Контрольная сумма не совпала: {actual} != {expected}")
+        sys.exit(f"Контрольная сумма ipatool не совпала: {actual} != {expected}")
     BIN.mkdir(exist_ok=True)
     with tarfile.open(fileobj=io.BytesIO(data)) as tar:
         member = next(m for m in tar.getmembers() if m.isfile() and Path(m.name).name.startswith("ipatool"))
         exe.write_bytes(tar.extractfile(member).read())
     exe.chmod(0o755)
+    marker.write_text(VERSION)
     print(f"Готово: {exe}")
 
 

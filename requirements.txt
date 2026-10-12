@@ -1,3 +1,6 @@
-pymobiledevice3
-requests
-pywebview; sys_platform != "linux"
+# Версии закреплены: программа разбирает вывод pymobiledevice3, и новая версия могла бы его изменить.
+# Это версии, с которыми собран и проверен релиз 1.2.1. cryptography не закреплена намеренно:
+# для Intel-маков нет готовой сборки последней версии, и pip сам берёт подходящую (см. build.yml).
+pymobiledevice3==11.28.2
+requests==2.34.2
+pywebview==6.2.1; sys_platform != "linux"

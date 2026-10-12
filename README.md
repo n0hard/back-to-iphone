@@ -190,7 +190,7 @@ git clone https://github.com/n0hard/back-to-iphone.git
 собирать под другую ОС. Нужен Python 3.11+:
 
 ```bash
-python -m pip install --only-binary cryptography -r requirements.txt pyinstaller
+python -m pip install --only-binary cryptography -r requirements.txt pyinstaller==6.22.3
 ```
 
 ```bash
@@ -212,6 +212,11 @@ python packaging/build.py
 Сборку можно запустить вручную во вкладке Actions, она также запускается на pull request. При пуше тега
 вида `v1.2.0` готовые файлы автоматически прикрепляются к релизу.
 
+Версии зависимостей закреплены: Python-пакеты — в `requirements.txt`, PyInstaller — в команде установки выше,
+`ipatool` — вместе с контрольными суммами в `app/setup_tools.py`. Программа разбирает вывод `ipatool` и
+`pymobiledevice3`, поэтому их новые версии нужно сначала проверить, а потом поднимать номер.
+Сборка кладёт тексты лицензий всех вложенных компонентов в папку `licenses` внутри программы.
+
 ## Отказ от ответственности
 
 Проект для личного использования. Он не связан с Apple и не распространяет чужие приложения: всё скачивается
@@ -220,3 +225,9 @@ python packaging/build.py
 
 Используются [ipatool](https://github.com/majd/ipatool) (MIT) и
 [pymobiledevice3](https://github.com/doronz88/pymobiledevice3) (GPL-3.0).
+
+## Лицензия
+
+«Возврат» распространяется под лицензией [GNU GPL v3](LICENSE): программу можно свободно использовать,
+изменять и распространять, в том числе изменённую, но с открытым исходным кодом под той же лицензией.
+Такая лицензия нужна и потому, что в сборку входит pymobiledevice3 (GPL-3.0).
