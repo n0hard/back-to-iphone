@@ -7,6 +7,7 @@ import secrets
 import shutil
 import sys
 import threading
+import time
 import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -172,9 +173,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def authorized(self):
+        global last_seen
         if self.headers.get("X-Token") != TOKEN:
             self.send_json({"error": "forbidden"}, 403)
             return False
+        last_seen = time.monotonic()
         return True
 
     def do_GET(self):
@@ -206,7 +209,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             if url.path == "/api/state":
-                self.send_json({"account": account})
+                self.send_json({"account": account, "platform": sys.platform})
             elif url.path == "/api/devices":
                 self.send_json({"devices": device.list_devices()})
             elif url.path == "/api/catalog":
@@ -272,6 +275,16 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             traceback.print_exc()
             self.send_json({"error": f"{type(e).__name__}: {e}"}, 500)
+
+
+last_seen = time.monotonic()  # время последнего запроса страницы: она опрашивает сервер каждые несколько секунд
+
+
+def idle_seconds():
+    """Сколько секунд страница не выходила на связь; пока что-то ставится, программа не простаивает."""
+    with lock:
+        busy = any(job["stage"] in ACTIVE for job in jobs.values())
+    return 0 if busy else time.monotonic() - last_seen
 
 
 def create(port):

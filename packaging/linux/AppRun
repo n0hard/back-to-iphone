@@ -1,0 +1,4 @@
+#!/bin/sh
+# Точка входа AppImage: запускает собранную программу из usr/lib/vozvrat
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/usr/lib/vozvrat/Vozvrat" "$@"

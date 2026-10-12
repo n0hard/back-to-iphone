@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Возврат
+Comment=Возвращает на iPhone приложения, удалённые из App Store
+Exec=Vozvrat
+Icon=vozvrat
+Categories=Utility;
+Terminal=false

@@ -20,7 +20,17 @@ from pathlib import Path, PurePosixPath
 import requests
 
 ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))  # в .exe bin/ лежит внутри
-DATA = Path(os.environ.get("APPDATA", Path.home())) / "vozvrat"
+
+
+def _data_dir():
+    if sys.platform == "win32":
+        return Path(os.environ.get("APPDATA") or Path.home()) / "vozvrat"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "Vozvrat"
+    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "vozvrat"
+
+
+DATA = _data_dir()
 IPATOOL_HOME = DATA / "ipatool-home"  # ipatool кладёт состояние в <домашняя папка>/.ipatool
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 # iTunes Search API отвечает 403 на User-Agent python-requests
@@ -59,7 +69,13 @@ def _passphrase():
 def _run(args, timeout=600):
     cmd = [ipatool_path(), *args, "--format", "json", "--non-interactive", "--keychain-passphrase", _passphrase()]
     IPATOOL_HOME.mkdir(parents=True, exist_ok=True)
-    env = {**os.environ, "USERPROFILE": str(IPATOOL_HOME), "HOME": str(IPATOOL_HOME)}
+    env = dict(os.environ)
+    # На macOS сессия ipatool лежит в системной связке ключей, а не в общем файле, и HOME трогать нельзя:
+    # от него зависит доступ к связке. На Windows и Linux — файловое хранилище в своей папке.
+    if sys.platform == "win32":
+        env.update(USERPROFILE=str(IPATOOL_HOME), HOME=str(IPATOOL_HOME))
+    elif sys.platform != "darwin":
+        env["HOME"] = str(IPATOOL_HOME)
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
                            timeout=timeout, creationflags=NO_WINDOW, env=env)

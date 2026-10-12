@@ -1,6 +1,7 @@
 """Скачивает ipatool (github.com/majd/ipatool) в ../bin и проверяет SHA-256 из официального релиза."""
 import hashlib
 import io
+import os
 import platform
 import sys
 import tarfile
@@ -24,7 +25,9 @@ def main():
     if exe.exists() and "--force" not in sys.argv:
         print(f"ipatool уже установлен: {exe}")
         return
-    rel = requests.get(f"https://api.github.com/repos/{REPO}/releases/latest", timeout=30).json()
+    token = os.environ.get("GITHUB_TOKEN")  # в CI без токена легко упереться в лимит API GitHub
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    rel = requests.get(f"https://api.github.com/repos/{REPO}/releases/latest", headers=headers, timeout=30).json()
     suffix = f"-{system}-{arch}.tar.gz"
     assets = {a["name"]: a["browser_download_url"] for a in rel["assets"]}
     name = next(n for n in assets if n.endswith(suffix))
