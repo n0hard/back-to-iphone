@@ -47,6 +47,8 @@
         "mainEntity": [
           { "@type": "Question", "name": "Нужен ли джейлбрейк?", "acceptedAnswer": { "@type": "Answer", "text": "Нет. Приложение скачивается с оригинальной подписью Apple и ставится по USB. Оно не «протухает» через 7 дней." } },
           { "@type": "Question", "name": "Что делать, если пишет «Этого приложения нет в истории покупок»?", "acceptedAnswer": { "@type": "Answer", "text": "Приложение не скачивалось с этого Apple ID. Попробуйте другой вариант в «Все варианты…» или другой аккаунт." } },
+          { "@type": "Question", "name": "Как обновить установленные приложения?", "acceptedAnswer": { "@type": "Answer", "text": "Подключите iPhone и нажмите «Проверить обновления» в «Возврате»: программа найдёт в истории покупок версии новее и обновит приложения по одному или все сразу." } },
+          { "@type": "Question", "name": "Как обновить сам «Возврат»?", "acceptedAnswer": { "@type": "Answer", "text": "Начиная с версии 1.3.0 программа обновляется сама: при выходе новой версии она показывает окно с кнопкой «Обновить»." } },
           { "@type": "Question", "name": "Безопасно ли вводить пароль Apple ID?", "acceptedAnswer": { "@type": "Answer", "text": "Программа работает локально на 127.0.0.1, пароль передаётся только на серверы Apple. Код открыт и доступен для проверки на GitHub." } }
         ]
       }
@@ -128,12 +130,22 @@
           <article class="tile s2 reveal">
             <div class="kicker">Очередь</div>
             <h3>Несколько сразу</h3>
-            <p>Нажмите «Установить» у нескольких приложений: они встанут в очередь, ожидающие можно отменить.</p>
+            <p>Нажмите «Установить» у нескольких приложений: они встанут в очередь. Отменить можно и ожидающие, и идущую загрузку.</p>
           </article>
           <article class="tile s2 reveal">
             <div class="kicker">Проверка</div>
             <h3>Совместимость</h3>
             <p>Перед установкой программа сверяет минимальную iOS и поддержку вашего iPhone.</p>
+          </article>
+          <article class="tile s3 dk reveal">
+            <div class="kicker">Новое в 1.3</div>
+            <h3>Обновляется сама.</h3>
+            <p>Вышла новая версия — программа покажет окно с кнопкой «Обновить», скачает, проверит и установит обновление и откроется заново. Заходить на сайт или GitHub не нужно.</p>
+          </article>
+          <article class="tile s3 reveal">
+            <div class="kicker">Новое в 1.3</div>
+            <h3>Обновления приложений</h3>
+            <p>Удалённые из App Store приложения сами не обновляются. «Возврат» сравнит версии на iPhone с последними в истории покупок и обновит их одним нажатием.</p>
           </article>
           <article class="tile s3 reveal">
             <div class="kicker">Приватность</div>
@@ -161,6 +173,8 @@
           <button class="tab" role="tab" id="t-variants" aria-controls="p-variants" aria-selected="false" tabindex="-1">Варианты</button>
           <button class="tab" role="tab" id="t-versions" aria-controls="p-versions" aria-selected="false" tabindex="-1">Версии</button>
           <button class="tab" role="tab" id="t-queue" aria-controls="p-queue" aria-selected="false" tabindex="-1">Очередь</button>
+          <button class="tab" role="tab" id="t-appupd" aria-controls="p-appupd" aria-selected="false" tabindex="-1">Обновления</button>
+          <button class="tab" role="tab" id="t-selfupd" aria-controls="p-selfupd" aria-selected="false" tabindex="-1">Новая версия</button>
         </div>
 
         <div class="panel" id="p-main" role="tabpanel" aria-labelledby="t-main">
@@ -195,11 +209,31 @@
         </div>
         <div class="panel" id="p-queue" role="tabpanel" aria-labelledby="t-queue" hidden>
           <div class="shots-grid">
-            <div class="window"><div class="window-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="window-title">Возврат</span></div><div class="window-body"><img src="img/queue.png" width="728" height="517" loading="lazy" alt="Очередь установок: прогресс, ожидание, готово" /></div></div>
+            <div class="window"><div class="window-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="window-title">Возврат</span></div><div class="window-body"><img src="img/download-progress.png" width="728" height="346" loading="lazy" alt="Очередь установок: скачивание с процентами и кнопкой «Отменить», следующее приложение ждёт" /></div></div>
             <div class="shots-text">
               <h3>Очередь установок.</h3>
               <p>Нажмите «Установить» у нескольких приложений сразу. Они поставятся по очереди, а прогресс виден прямо в карточке.</p>
-              <ul><li>Ожидающие можно отменить</li><li>Прогресс скачивания и установки</li><li>Не отключайте кабель и не блокируйте экран</li></ul>
+              <ul><li>Отменить можно и ожидающие, и идущую загрузку</li><li>Прогресс в процентах, если Apple сообщает размер</li><li>Не отключайте кабель и не блокируйте экран</li></ul>
+            </div>
+          </div>
+        </div>
+        <div class="panel" id="p-appupd" role="tabpanel" aria-labelledby="t-appupd" hidden>
+          <div class="shots-grid">
+            <div class="window"><div class="window-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="window-title">Возврат</span></div><div class="window-body"><img src="img/app-updates.png" width="728" height="368" loading="lazy" alt="Обновления приложений: MAX 1.0 → 1.2, СберБанк Онлайн 15.1 → 16.0, кнопка «Обновить все»" /></div></div>
+            <div class="shots-text">
+              <h3>Обновления приложений.</h3>
+              <p>Удалённые из App Store приложения не обновляются сами. Нажмите «Проверить обновления» — «Возврат» сравнит версии на iPhone с последними в истории покупок.</p>
+              <ul><li>Видно, какая версия стоит и какая доступна</li><li>Обновить одно или все сразу</li><li>Данные приложений сохраняются</li></ul>
+            </div>
+          </div>
+        </div>
+        <div class="panel" id="p-selfupd" role="tabpanel" aria-labelledby="t-selfupd" hidden>
+          <div class="shots-grid">
+            <div class="window"><div class="window-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="window-title">Возврат</span></div><div class="window-body"><img src="img/update-window.png" width="572" height="387" loading="lazy" alt="Окно «Вышла версия 1.3.1» с кнопкой «Обновить»" /></div></div>
+            <div class="shots-text">
+              <h3>Обновление в одну кнопку.</h3>
+              <p>Когда выходит новая версия, «Возврат» сам предложит обновиться: скачает файл для вашей системы, проверит контрольную сумму, установит и откроется заново.</p>
+              <ul><li>Без сайта и GitHub</li><li>Windows, macOS и Linux</li><li>Работает только последняя версия — у всех самые свежие исправления</li></ul>
             </div>
           </div>
         </div>
@@ -288,6 +322,7 @@
             </div>
           </div>
         </div>
+        <p class="note"><b>Дальше программа обновляется сама</b> — кнопкой «Обновить» в окне новой версии. Если у вас 1.2.1 или старше, установите новую версию отсюда один раз: в старых версиях автообновления ещё нет.</p>
         <p class="note">Если ссылка не открывает файл, возьмите нужную сборку на странице <a href="https://github.com/n0hard/back-to-iphone/releases" target="_blank" rel="noopener noreferrer">Releases</a>.</p>
 
         <div class="install reveal">
@@ -339,7 +374,10 @@
           <details><summary>Безопасно ли вводить пароль Apple ID?</summary><div><p>Программа работает локально на вашем компьютере (127.0.0.1). Пароль передаётся только на серверы Apple через <code>ipatool</code>, двухфакторная аутентификация поддерживается. Исходный код открыт на GitHub.</p></div></details>
           <details><summary>Не приходят push-уведомления</summary><div><p>Для части удалённых приложений Apple отключила пуши. Это ограничение Apple, а не программы.</p></div></details>
           <details><summary>Поиск не находит приложение</summary><div><p>Поиск идёт только по каталогу программы (441 приложение) и понимает транслит, разговорные названия и небольшие опечатки: «макс» и «max», «сбол», «тинькофф». Если приложения в каталоге нет, введите его App Store ID или ссылку <code>apps.apple.com/…/id123456789</code>.</p></div></details>
-          <details><summary>Обновляются ли такие приложения через App Store?</summary><div><p>Нет, удалённые приложения через App Store не обновляются. Чтобы поставить более свежую версию, если она есть в истории покупок, установите приложение ещё раз.</p></div></details>
+          <details><summary>Как обновить установленные приложения?</summary><div><p>Через App Store удалённые приложения не обновляются. Подключите iPhone и нажмите «Проверить обновления» в «Возврате»: программа покажет, для каких приложений в истории покупок есть версия новее, и обновит их по одному или все сразу. Данные приложений сохраняются.</p></div></details>
+          <details><summary>Как обновить сам «Возврат»?</summary><div><p>Ничего делать не нужно: когда выходит новая версия, программа показывает окно с кнопкой «Обновить» и сама ставит обновление. Если у вас 1.2.1 или старше, один раз установите новую версию со страницы загрузки — автообновление появилось в 1.3.0.</p></div></details>
+          <details><summary>Почему «Возврат» не запускается без интернета?</summary><div><p>Работает только последняя версия программы, поэтому при запуске она проверяет обновления на GitHub. Если проверить не удалось, появится сообщение с кнопкой «Повторить» — проверьте подключение к интернету. Без интернета программа всё равно не смогла бы скачать приложение у Apple.</p></div></details>
+          <details><summary>Можно ли отменить скачивание?</summary><div><p>Да, кнопкой «Отменить» в карточке приложения — и пока оно ждёт в очереди, и во время скачивания. Установку на iPhone прервать нельзя: оборванная установка может оставить приложение в неработающем состоянии.</p></div></details>
         </div>
       </div>
     </section>
