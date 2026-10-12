@@ -24,6 +24,24 @@ WIN, MAC = sys.platform == "win32", sys.platform == "darwin"
 ARCH = "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "x64"
 
 
+def app_version():
+    scope = {}
+    exec((ROOT / "app" / "version.py").read_text(encoding="utf-8"), scope)
+    return scope["VERSION"]
+
+
+def check_tag():
+    """Тег релиза обязан совпадать с версией программы. Иначе программа сравнивала бы себя с релизом
+    другого номера: при версии в коде ниже тега она навсегда считала бы себя устаревшей и требовала
+    обновиться на саму себя."""
+    ref = os.environ.get("GITHUB_REF", "")
+    if ref.startswith("refs/tags/"):
+        tag, version = ref.rsplit("/", 1)[1], app_version()
+        if tag.lstrip("v") != version:
+            sys.exit(f"Тег {tag} не совпадает с версией в app/version.py ({version}). Поправьте VERSION "
+                     f"и поставьте тег заново")
+
+
 def sh(*cmd, **kw):
     print("+", " ".join(map(str, cmd)), flush=True)
     subprocess.run(list(map(str, cmd)), check=True, **kw)
@@ -127,7 +145,7 @@ def package_windows():
         print("Inno Setup 6 не найден — инсталлятор не собран, программа лежит в build/dist/Vozvrat")
         return
     for attempt in range(3):  # антивирус иногда держит свежий exe — «EndUpdateResource failed»
-        if subprocess.run([str(iscc), str(PKG / "installer.iss")]).returncode == 0:
+        if subprocess.run([str(iscc), f"/DAppVersion={app_version()}", str(PKG / "installer.iss")]).returncode == 0:
             return
     sys.exit("Inno Setup не смог собрать инсталлятор")
 
@@ -179,6 +197,7 @@ def package_linux():
 
 
 def main():
+    check_tag()
     DIST.mkdir(exist_ok=True)
     pyinstaller()
     smoke()

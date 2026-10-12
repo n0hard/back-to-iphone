@@ -68,6 +68,10 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      # Контрольные суммы для обновления из самой программы: файл берётся по обычной ссылке
+      # на скачивание, у которой нет лимита запросов, как у API GitHub
+      - name: SHA256SUMS.txt
+        run: cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*

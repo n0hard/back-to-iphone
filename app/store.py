@@ -13,6 +13,7 @@ import secrets
 import subprocess
 import sys
 import threading
+import time
 import zipfile
 import plistlib
 from pathlib import Path, PurePosixPath
@@ -50,6 +51,10 @@ class NeedCode(StoreError):
     """Apple требует код двухфакторной аутентификации."""
 
 
+class Canceled(StoreError):
+    """Пользователь отменил скачивание."""
+
+
 def ipatool_path():
     exe = ROOT / "bin" / ("ipatool.exe" if sys.platform == "win32" else "ipatool")
     if not exe.exists():
@@ -66,8 +71,8 @@ def _passphrase():
     return key.read_text(encoding="utf-8").strip()
 
 
-def _run(args, timeout=600):
-    cmd = [ipatool_path(), *args, "--format", "json", "--non-interactive", "--keychain-passphrase", _passphrase()]
+def _run(args, timeout=600, cancel=None):
+    cmd =[ipatool_path(), *args, "--format", "json", "--non-interactive", "--keychain-passphrase", _passphrase()]
     IPATOOL_HOME.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
     # На macOS сессия ipatool лежит в системной связке ключей, а не в общем файле, и HOME трогать нельзя:
@@ -76,13 +81,24 @@ def _run(args, timeout=600):
         env.update(USERPROFILE=str(IPATOOL_HOME), HOME=str(IPATOOL_HOME))
     elif sys.platform != "darwin":
         env["HOME"] = str(IPATOOL_HOME)
-    try:
-        p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=timeout, creationflags=NO_WINDOW, env=env)
-    except subprocess.TimeoutExpired:
-        raise StoreError("App Store не ответил вовремя, попробуйте ещё раз")
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
+                         errors="replace", creationflags=NO_WINDOW, env=env)
+    deadline = time.monotonic() + timeout
+    while True:  # ждём кусками, чтобы скачивание можно было прервать кнопкой «Отменить»
+        try:
+            stdout, stderr = p.communicate(timeout=0.5)
+            break
+        except subprocess.TimeoutExpired:
+            if cancel is not None and cancel.is_set():
+                p.kill()
+                p.communicate()
+                raise Canceled("Отменено")
+            if time.monotonic() > deadline:
+                p.kill()
+                p.communicate()
+                raise StoreError("App Store не ответил вовремя, попробуйте ещё раз")
     events = []
-    for line in (p.stdout + "\n" + p.stderr).splitlines():
+    for line in (stdout + "\n" + stderr).splitlines():
         line = line.strip()
         if line.startswith("{"):
             try:
@@ -92,7 +108,7 @@ def _run(args, timeout=600):
     result = next((e for e in reversed(events) if "success" in e), {})
     # при нужном 2FA ipatool завершается с кодом 0 и лишь пишет сообщение — успех только при success: true
     if p.returncode != 0 or result.get("success") is not True:
-        raise _error(events, p.stdout + p.stderr)
+        raise _error(events, stdout + stderr)
     return result
 
 
@@ -146,7 +162,7 @@ def logout():
 
 # ---------- скачивание ----------
 
-def download(app_id, dest_dir, progress=None, allow_purchase=False, version_id=None):
+def download(app_id, dest_dir, progress=None, allow_purchase=False, version_id=None, cancel=None):
     """Скачивает IPA (уже с sinf и iTunesMetadata). Возвращает путь к файлу.
     version_id — externalVersionId из list_versions; без него берётся последняя версия."""
     dest = Path(dest_dir)
@@ -168,7 +184,7 @@ def download(app_id, dest_dir, progress=None, allow_purchase=False, version_id=N
     t = threading.Thread(target=watch, daemon=True)
     t.start()
     try:
-        r = _run(args, timeout=3600)
+        r = _run(args, timeout=3600, cancel=cancel)
     finally:
         stop.set()
         t.join()
@@ -206,7 +222,7 @@ def ipa_requirements(path):
         info = plistlib.loads(z.read(name))
     return {"minimumOS": str(info.get("MinimumOSVersion") or ""), "families": info.get("UIDeviceFamily") or [],
             "version": str(info.get("CFBundleShortVersionString") or ""), "name": info.get("CFBundleDisplayName")
-            or info.get("CFBundleName") or ""}
+            or info.get("CFBundleName") or "", "bundleId": str(info.get("CFBundleIdentifier") or "")}
 
 
 def version_tuple(v):
@@ -223,6 +239,21 @@ def search(term, limit=20):
         if r.ok:
             return [_short(x) for x in _json(r).get("results", [])]
     raise StoreError("Поиск App Store временно недоступен, попробуйте через минуту или введите ID")
+
+
+def download_size(app_id):
+    """Размер IPA последней версии по данным App Store — для процентов скачивания. Удалённые приложения
+    часто остались в магазинах других стран; если нигде нет — None, тогда прогресс только в мегабайтах."""
+    for country in ("ru", "us", "kz"):
+        try:
+            r = requests.get("https://itunes.apple.com/lookup", headers=WEB_HEADERS, timeout=10,
+                             params={"id": app_id, "country": country})
+            res = r.json().get("results", []) if r.ok else []
+        except (requests.RequestException, ValueError):
+            continue
+        if res and res[0].get("fileSizeBytes"):
+            return int(res[0]["fileSizeBytes"])
+    return None
 
 
 def lookup(app_id, country="ru"):

@@ -75,6 +75,17 @@
   .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
   .bar.indef > div { width: 30% !important; animation: slide 1.2s infinite ease-in-out; }
   @keyframes slide { from { margin-left: -30%; } to { margin-left: 100%; } }
+  .upd { position: fixed; inset: 0; z-index: 50; background: var(--bg); display: grid; place-items: center; padding: 16px; }
+  .upd-box { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 28px; width: min(460px, 100%);
+             text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.15); }
+  .upd-box .logo { margin: 0 auto 14px; width: 56px; height: 56px; font-size: 28px; border-radius: 14px; }
+  .upd-box h2 { margin: 0 0 8px; font-size: 20px; }
+  .upd-box p { margin: 0 0 16px; color: var(--muted); }
+  .upd-box .bar { margin: 4px 0 8px; height: 8px; border-radius: 4px; }
+  .upd-box button { width: 100%; padding: 12px; font-size: 16px; }
+  .upd-box .err { margin: 0 0 14px; }
+  .ver-tag { font-size: 12px; color: var(--muted); font-weight: 500; margin-left: auto; }
+  .upd-list .ver:last-child { border-bottom: 0; }
   .note { background: var(--warn-bg); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
   label.chk { display: flex; gap: 8px; align-items: center; font-size: 14px; }
   .hidden { display: none !important; }
@@ -95,7 +106,7 @@
 </head>
 <body>
 <div class="wrap">
-  <header><div class="logo">↺</div><h1>Возврат</h1></header>
+  <header><div class="logo">↺</div><h1>Возврат</h1><span class="ver-tag" id="verTag"></span></header>
   <p class="sub">Возвращает на iPhone приложения, удалённые из App Store: скачивает оригинальный IPA из истории покупок вашего Apple ID и ставит его по USB.</p>
 
   <!-- 1. Apple ID -->
@@ -153,6 +164,16 @@
     </div>
   </section>
 
+  <!-- Обновления приложений на iPhone -->
+  <section class="card">
+    <h2><span class="num">↻</span>Обновления приложений</h2>
+    <p class="muted">Удалённые из App Store приложения не обновляются сами. «Возврат» сравнит версии на iPhone
+      с последними версиями в истории покупок вашего Apple ID.</p>
+    <button class="ghost" id="appUpdBtn">Проверить обновления</button>
+    <div class="err" id="appUpdErr"></div>
+    <div id="appUpdList" class="upd-list"></div>
+  </section>
+
   <section class="card">
     <details>
       <summary>Вопросы</summary>
@@ -162,6 +183,18 @@
       <p><b>Обновления.</b> Удалённые приложения не обновляются через App Store. Чтобы получить свежую версию (если разработчик её выпустил), установите приложение снова.</p>
     </details>
   </section>
+</div>
+
+<div class="upd" id="updScreen">
+  <div class="upd-box">
+    <div class="logo">↺</div>
+    <h2 id="updTitle">Проверяю обновления…</h2>
+    <p id="updText">Это займёт несколько секунд.</p>
+    <div class="bar indef hidden" id="updBar"><div></div></div>
+    <p class="muted hidden" id="updDetail" style="margin-top:0"></p>
+    <div class="err hidden" id="updErr"></div>
+    <button class="hidden" id="updBtn">Обновить</button>
+  </div>
 </div>
 
 <div class="modal hidden" id="verModal">
@@ -291,7 +324,8 @@ function actionHtml(g) {
   if (s.stage === "queued") return `<div class="queued">В очереди · №${s.position || "?"}</div>${which}
     <button class="ghost" data-cancel="${esc(s.id)}">Отменить</button>`;
   if (RUNNING.includes(s.stage)) return `<div class="bar indef"><div></div></div><div class="muted msg">${esc(s.message)}</div>${which}`
-    + (s.versionLabel ? `<div class="muted">Версия ${esc(s.versionLabel)}</div>` : "");
+    + (s.versionLabel ? `<div class="muted">Версия ${esc(s.versionLabel)}</div>` : "")
+    + (s.stage === "download" ? `<button class="ghost" data-cancel="${esc(s.id)}" style="margin-top:6px">Отменить</button>` : "");
   if (s.stage === "done") return `<div class="ok">✓ Установлено</div>${which}<div class="muted">${esc((s.message || "").split("\n").slice(1).join(" "))}</div>` + link;
   return `<button data-id="${esc(s.appId)}" data-name="${esc(s.name || g.title)}">Повторить</button>${which}<div class="err">${esc(s.error || s.message)}</div>` + link;
 }
@@ -531,6 +565,89 @@ async function install(appId, name, versionId, versionLabel) {
   poll();
 }
 
+// Обновление программы. Пока версия не последняя (или проверить не удалось), экран обновления
+// перекрывает всё и его нельзя закрыть: сервер в это время тоже отклоняет вход и установку.
+const UPD_OK = ["current", "source"];
+let updTimer = null, platform = "";
+function showUpd(st) {
+  const ok = UPD_OK.includes(st.status);
+  $("updScreen").classList.toggle("hidden", ok);
+  document.body.style.overflow = ok ? "" : "hidden";  // страница под экраном обновления не прокручивается
+  if (ok) return;
+  const btn = $("updBtn"), bar = $("updBar"), detail = $("updDetail"), err = $("updErr");
+  const text = (title, body) => { $("updTitle").textContent = title; $("updText").textContent = body; };
+  const button = (label, act) => { btn.textContent = label; btn.dataset.act = act; btn.classList.remove("hidden"); };
+  const error = msg => { err.textContent = msg || ""; err.classList.toggle("hidden", !msg); };
+  [btn, bar, detail].forEach(el => el.classList.add("hidden")); error("");
+  if (st.status === "checking") text("Проверяю обновления…", "Это займёт несколько секунд.");
+  else if (st.status === "failed") {
+    text("Не удалось проверить обновления", "«Возврат» работает только в последней версии, поэтому без проверки его не запустить.");
+    error(st.error); button("Повторить", "check");
+  } else if (st.status === "outdated") {
+    text(`Вышла версия ${st.latest}`, `У вас версия ${st.current}, она больше не работает. Обновление займёт около минуты.`);
+    button("Обновить", "start");
+  } else if (st.status === "downloading") {
+    text(`Скачиваю версию ${st.latest}…`, "Не закрывайте программу.");
+    bar.classList.remove("hidden"); bar.classList.toggle("indef", st.progress == null);
+    bar.firstElementChild.style.width = st.progress == null ? "" : (st.progress * 100).toFixed(1) + "%";
+    if (st.detail) { detail.textContent = st.detail; detail.classList.remove("hidden"); }
+  } else if (st.status === "installing") {
+    text("Устанавливаю обновление…", platform === "win32" ? "Появится окно установки, затем «Возврат» откроется заново."
+                                                         : "«Возврат» сейчас перезапустится.");
+    bar.classList.remove("hidden"); bar.classList.add("indef"); bar.firstElementChild.style.width = "";
+  } else if (st.status === "restarting") {
+    text("Перезапуск…", platform === "linux" ? "Новая версия откроется в новой вкладке браузера. Эту вкладку можно закрыть."
+                                             : "«Возврат» сейчас откроется заново.");
+  } else if (st.status === "error") {
+    text("Не удалось обновить", `Версия ${st.latest || ""} не установилась.`);
+    error(st.error); button("Повторить", "start");
+  }
+}
+async function watchUpdate() {
+  clearTimeout(updTimer);
+  let st = null;
+  try { st = await api("/api/update"); showUpd(st); } catch (e) { /* сервер перезапускается — спросим ещё раз */ }
+  if (st && st.status === "restarting") return;
+  updTimer = setTimeout(watchUpdate, st && UPD_OK.includes(st.status) ? 60000 : 1000);
+}
+$("updBtn").onclick = async () => {
+  const act = $("updBtn").dataset.act;
+  $("updBtn").disabled = true;
+  if (act === "check") showUpd({status: "checking"});
+  try { showUpd(await api(act === "check" ? "/api/update/check" : "/api/update/start", {})); }
+  catch (e) { $("updErr").textContent = e.message; $("updErr").classList.remove("hidden"); }
+  finally { $("updBtn").disabled = false; }
+  watchUpdate();
+};
+
+// Обновления приложений на iPhone: сравниваем версии на телефоне с последними в истории покупок
+$("appUpdBtn").onclick = async () => {
+  const b = $("appUpdBtn"), err = $("appUpdErr"), list = $("appUpdList");
+  err.textContent = ""; list.innerHTML = "";
+  if (!account) { err.textContent = "Сначала войдите в Apple ID (шаг 1)"; return; }
+  if (!udid) { await loadDevices(); if (!udid) { err.textContent = "Подключите iPhone (шаг 2)"; return; } }
+  b.disabled = true; b.textContent = "Проверяю… (до минуты)";
+  try {
+    const r = await api("/api/app-updates?udid=" + encodeURIComponent(udid));
+    if (!r.updates.length) {
+      list.innerHTML = `<p class="muted">${r.checked ? `Всё актуально: проверено ${r.checked} ${plural(r.checked, "приложение", "приложения", "приложений")}`
+                                                  : "На iPhone нет приложений из каталога «Возврата»"}</p>`;
+      return;
+    }
+    list.innerHTML = r.updates.map(u => `<div class="ver"><div><b>${esc(u.name)}</b>
+      <div class="muted">${esc(u.installed)} → ${esc(u.latest)}</div></div>
+      <button data-upd="${esc(u.appId)}" data-name="${esc(u.name)}">Обновить</button></div>`).join("")
+      + (r.updates.length > 1 ? `<button id="appUpdAll" style="margin-top:10px">Обновить все (${r.updates.length})</button>` : "");
+    const one = btn => { btn.disabled = true; btn.textContent = "В очереди"; install(btn.dataset.upd, btn.dataset.name); };
+    list.querySelectorAll("button[data-upd]").forEach(btn => btn.onclick = () => one(btn));
+    if ($("appUpdAll")) $("appUpdAll").onclick = () => {
+      $("appUpdAll").disabled = true;
+      list.querySelectorAll("button[data-upd]:not(:disabled)").forEach(one);
+    };
+  } catch (e) { err.textContent = e.message; }
+  finally { b.disabled = false; b.textContent = "Проверить обновления"; }
+};
+
 // Один общий опрос очереди: часто, пока что-то ставится, и редко в простое
 let pollTimer = null, handledRelogin = new Set();
 function hasActive() { return Object.values(jobState).some(isActive); }
@@ -550,6 +667,8 @@ async function poll() {
 
 (async () => {
   const state = await api("/api/state");
+  platform = state.platform; $("verTag").textContent = "версия " + state.version;
+  showUpd(state.update); watchUpdate();
   account = state.account; renderAccount();
   const driver = {
     win32: "Установите «Apple Devices» из Microsoft Store (или iTunes) и переподключите кабель.",
@@ -562,7 +681,8 @@ async function poll() {
   renderCatalog();
   loadDevices();
   poll();
-  setInterval(() => { if (!hasActive()) loadDevices(); }, 8000);  // во время установки iPhone не дёргаем
+  // во время установки iPhone не дёргаем; пока программа заблокирована до обновления — тоже
+  setInterval(() => { if (!hasActive() && $("updScreen").classList.contains("hidden")) loadDevices(); }, 8000);
 })();
 </script>
 </body>

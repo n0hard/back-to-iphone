@@ -1,9 +1,16 @@
 """Работа с iPhone по USB через pymobiledevice3.
 
 Нужна служба usbmuxd: на Windows её ставит «Apple Devices» или iTunes, на macOS она встроена,
-на Linux это пакет usbmuxd."""
-import json
+на Linux это пакет usbmuxd.
+
+Список устройств и установленных приложений берётся прямо в этом процессе: страница опрашивает
+iPhone каждые 8 секунд, и запуск отдельного процесса на каждый опрос (в сборке — копии всей
+программы) зря грузил процессор. Установка по-прежнему идёт отдельным процессом: она долгая,
+и её сбой не должен ронять программу.
+"""
+import asyncio
 import os
+import plistlib
 import subprocess
 import sys
 
@@ -18,6 +25,7 @@ DRIVER_HINT = {
     "darwin": "macOS не видит iPhone. Переподключите кабель и разблокируйте iPhone",
 }.get(sys.platform, "Не запущена служба usbmuxd. Установите её (sudo apt install usbmuxd или аналог "
                    "для вашего дистрибутива) и переподключите iPhone")
+TRUST_HINT = "Разблокируйте iPhone и нажмите «Доверять этому компьютеру», затем повторите"
 
 
 class DeviceError(Exception):
@@ -33,22 +41,78 @@ def _run(args, timeout):
     return p.returncode, p.stdout, p.stderr
 
 
-def list_devices():
-    code, out, err = _run(["usbmux", "list", "--usb"], timeout=30)
-    if code != 0:
-        raise DeviceError(_explain(err or out))
-    start = out.find("[")
+def _call(coro_fn, *args):
+    """Выполняет асинхронную функцию pymobiledevice3 и переводит её ошибки в понятные."""
     try:
-        items = json.loads(out[start:]) if start >= 0 else []
-    except json.JSONDecodeError:
-        items = []
+        return asyncio.run(coro_fn(*args))
+    except (DeviceError, ImportError):  # ImportError — неполная сборка, её должна поймать самопроверка
+        raise
+    except Exception as e:
+        raise DeviceError(_explain(f"{type(e).__name__}: {e}")) from e
+
+
+# ---------- список устройств ----------
+
+async def _list_devices():
+    from pymobiledevice3 import usbmux
+    from pymobiledevice3.lockdown import create_using_usbmux
+
+    found = []
+    for dev in await usbmux.list_devices():
+        if not dev.is_usb:
+            continue
+        # то же, что `pymobiledevice3 usbmux list --usb`; соединение закрываем сразу
+        async with await create_using_usbmux(dev.serial, autopair=False, connection_type=dev.connection_type) as ld:
+            found.append(ld.short_info)
+    return found
+
+
+def list_devices():
+    items = _call(_list_devices)
     return [{
-        "udid": d.get("UniqueDeviceID") or d.get("Identifier") or d.get("SerialNumber"),
+        "udid": d.get("UniqueDeviceID") or d.get("Identifier"),
         "name": d.get("DeviceName") or "iPhone",
-        "model": d.get("ProductType", ""),
-        "ios": d.get("ProductVersion", ""),
+        "model": d.get("ProductType") or "",
+        "ios": d.get("ProductVersion") or "",
     } for d in items]
 
+
+# ---------- установленные приложения ----------
+
+APP_ATTRIBUTES = ["CFBundleIdentifier", "CFBundleShortVersionString", "CFBundleDisplayName", "CFBundleName",
+                  "iTunesMetadata"]
+
+
+async def _installed_apps(udid):
+    from pymobiledevice3.lockdown import create_using_usbmux
+    from pymobiledevice3.services.installation_proxy import InstallationProxyService
+
+    async with await create_using_usbmux(udid, autopair=False, connection_type="USB") as ld:
+        async with InstallationProxyService(lockdown=ld) as proxy:
+            return await proxy.lookup({"ApplicationType": "User", "ReturnAttributes": APP_ATTRIBUTES}) or {}
+
+
+def installed_apps(udid):
+    """{bundleId: {"version", "name", "appId"}} для приложений пользователя. appId (App Store ID) берётся
+    из iTunesMetadata, если iPhone её отдал; иначе None — тогда его знает только журнал установок."""
+    result = {}
+    for bundle_id, info in _call(_installed_apps, udid).items():
+        app_id = None
+        meta = info.get("iTunesMetadata")
+        if isinstance(meta, (bytes, bytearray)):
+            try:
+                app_id = int(plistlib.loads(bytes(meta)).get("itemId") or 0) or None
+            except Exception:
+                app_id = None
+        elif isinstance(meta, dict):
+            app_id = int(meta.get("itemId") or 0) or None
+        result[bundle_id] = {"version": str(info.get("CFBundleShortVersionString") or ""),
+                             "name": info.get("CFBundleDisplayName") or info.get("CFBundleName") or bundle_id,
+                             "appId": app_id}
+    return result
+
+
+# ---------- установка ----------
 
 def install(udid, ipa_path):
     args = ["apps", "install", ipa_path]
@@ -61,8 +125,9 @@ def install(udid, ipa_path):
 
 def _explain(text):
     t = text.lower()
-    if "pairing" in t or "not paired" in t or "passwordprotected" in t or "user denied" in t:
-        return "Разблокируйте iPhone и нажмите «Доверять этому компьютеру», затем повторите"
+    if any(k in t for k in ("pairing", "not paired", "notpaired", "passwordprotected", "passwordrequired",
+                            "user denied", "nottrusted")):
+        return TRUST_HINT
     if "usbmux" in t and ("connect" in t or "refused" in t):
         return DRIVER_HINT
     if "applicationverificationfailed" in t:

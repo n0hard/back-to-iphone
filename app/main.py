@@ -48,7 +48,7 @@ def smoke():
     import device
     import store
 
-    srv, url = server.create(0)
+    srv, url = server.create(0, check_updates=False)  # в CI проверка обновлений не нужна
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     page = urllib.request.urlopen(url).read().decode()
     assert server.TOKEN in page, "страница без токена"
@@ -61,7 +61,17 @@ def smoke():
         pmd3 = subprocess.run([*device.PMD3, "--no-color", *cmd, "--help"], capture_output=True, text=True,
                               encoding="utf-8", errors="replace", env=device.ENV, timeout=120)
         assert pmd3.returncode == 0 and "Usage" in pmd3.stdout, f"{' '.join(cmd)}: {pmd3.stderr[-500:]}"
-    print(f"smoke ok: {sys.platform}, {len(apps)} apps, {ipatool.stdout.strip()}")
+    # список iPhone теперь берётся внутри программы: модули pymobiledevice3 должны быть в сборке.
+    # iPhone на машине сборки нет, а службы usbmuxd может не быть — ошибка устройства здесь нормальна,
+    # а вот ImportError означает, что сборка неполная
+    try:
+        device.list_devices()
+    except device.DeviceError:
+        pass
+    from pymobiledevice3.services.installation_proxy import InstallationProxyService  # noqa: F401
+    import updater
+    assert updater.asset_name(), "не определён файл обновления"
+    print(f"smoke ok: {sys.platform}, {len(apps)} apps, {ipatool.stdout.strip()}, update asset {updater.asset_name()}")
 
 
 if __name__ == "__main__":

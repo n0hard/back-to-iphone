@@ -1,7 +1,10 @@
 ﻿; Инсталлятор «Возврат» (Inno Setup 6). Сборка: build.bat в корне проекта.
 
 #define AppName "Возврат"
-#define AppVersion "1.2.1"
+; Версию передаёт packaging/build.py из app/version.py (/DAppVersion=…); здесь — только запасная
+#ifndef AppVersion
+  #define AppVersion "0.0.0"
+#endif
 #define AppExe "Vozvrat.exe"
 
 [Setup]
@@ -42,6 +45,8 @@ Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 [Run]
 Filename: "ms-windows-store://pdp/?ProductId=9NP83LWLPZ9K"; Description: "Установить драйвер Apple Devices из Microsoft Store (нужен, чтобы видеть iPhone)"; Flags: postinstall shellexec skipifsilent; Check: not AppleDriverInstalled
 Filename: "{app}\{#AppExe}"; Description: "Запустить {#AppName}"; Flags: postinstall nowait skipifsilent
+; Обновление из самой программы идёт тихо (/SILENT) — тогда запускаем новую версию без вопросов
+Filename: "{app}\{#AppExe}"; Flags: nowait; Check: WizardSilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
