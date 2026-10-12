@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -92,7 +93,14 @@ def package_macos():
     os.symlink("/Applications", stage / "Applications")
     dmg = DIST / f"Vozvrat-macOS-{ARCH}.dmg"
     dmg.unlink(missing_ok=True)
-    sh("hdiutil", "create", "-volname", "Возврат", "-srcfolder", stage, "-ov", "-format", "UDZO", dmg)
+    cmd = ["hdiutil", "create", "-volname", "Возврат", "-srcfolder", stage, "-ov", "-format", "UDZO", dmg]
+    for attempt in range(5):  # на машинах GitHub hdiutil иногда отвечает «Resource busy» — помогает повтор
+        try:
+            return sh(*cmd)
+        except subprocess.CalledProcessError:
+            if attempt == 4:
+                raise
+            time.sleep(10)
 
 
 def package_linux():
