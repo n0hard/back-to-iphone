@@ -1,11 +1,12 @@
 # Сборка «Возврата» под Windows, macOS (Apple Silicon и Intel) и Linux.
 # Каждая сборка проходит самопроверку (--smoke) в packaging/build.py.
-# Запуск вручную (Actions → Build → Run workflow) — файлы в артефактах;
+# Запуск вручную (Actions → Build → Run workflow) или pull request — файлы в артефактах;
 # пуш тега vX.Y.Z — файлы прикрепляются к релизу.
 name: Build
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     tags: ["v*"]
 
