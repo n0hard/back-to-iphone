@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Безопасно ли вводить пароль Apple ID в «Возврате» — Возврат</title>
+  <meta name="description" content="Куда уходит пароль, как защищён локальный сервер и что делать, если вы пользовались другими ipatool-программами." />
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="canonical" href="https://n0hard.github.io/back-to-iphone/blog/bezopasnost-apple-id/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:locale" content="ru_RU" />
+  <meta property="og:site_name" content="Возврат" />
+  <meta property="og:title" content="Безопасно ли вводить пароль Apple ID в «Возврате» — Возврат" />
+  <meta property="og:description" content="Куда уходит пароль, как защищён локальный сервер и что делать, если вы пользовались другими ipatool-программами." />
+  <meta property="og:url" content="https://n0hard.github.io/back-to-iphone/blog/bezopasnost-apple-id/" />
+  <meta property="og:image" content="https://n0hard.github.io/back-to-iphone/og-image.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="stylesheet" href="../../site.css" />
+</head>
+<body id="top">
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="../../index.html" aria-label="Возврат — на главную"><span class="brand-ico" aria-hidden="true">↺</span>Возврат</a>
+      <ul class="menu" id="menu">
+        <li><a href="../../index.html#features">Возможности</a></li>
+        <li><a href="../../index.html#how">Как это работает</a></li>
+        <li><a href="../../index.html#download">Скачать</a></li>
+        <li><a href="../../blog/index.html" class="active">Блог</a></li>
+        <li><a href="../../index.html#faq">Вопросы</a></li>
+        <li><a href="https://github.com/n0hard/back-to-iphone" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+      </ul>
+      <div class="nav-cta">
+        <a class="btn sm" href="../../index.html#download">Скачать</a>
+        <button class="burger" id="burger" aria-label="Меню" aria-expanded="false" aria-controls="menu"><span></span><span></span></button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <article class="article">
+      <p class="crumbs"><a href="../index.html">← Блог</a></p>
+      <span class="tag">Объяснение</span><span class="meta">4 мин</span>
+      <h1>Безопасно ли вводить пароль Apple ID в «Возврате»</h1>
+      <p class="lede">Куда уходит пароль, как защищён локальный сервер и что делать, если вы пользовались другими ipatool-программами.</p>
+      
+<h2>Куда уходит пароль</h2>
+<p>Только на серверы Apple. Программа работает на вашем компьютере (127.0.0.1), а вход выполняет <code>ipatool</code>. Двухфакторная аутентификация поддерживается: код вводится в самой программе.</p>
+<figure class="shot"><div class="frame"><img src="../../img/step-appleid.png" width="728" height="124" loading="lazy" alt="После входа программа показывает только имя и адрес аккаунта. Кнопка «Выйти» завершает сессию" /></div><figcaption>После входа программа показывает только имя и адрес аккаунта. Кнопка «Выйти» завершает сессию</figcaption></figure>
+<h2>Как защищён локальный сервер</h2>
+<p>Локальный HTTP-сервер программы защищён случайным токеном и проверкой заголовка Host, поэтому посторонние страницы в браузере не смогут им воспользоваться.</p>
+<h2>Где хранится сессия</h2>
+<p>На Windows и Linux — в зашифрованном <code>ipatool-home</code> внутри папки программы, на macOS — в связке ключей.</p>
+<h2>Если вы пользовались IPA_Downloader и подобными</h2>
+<p>Начиная с версии 1.1.0 «Возврат» хранит сессию отдельно. Если вход не работает после других программ на ipatool, просто войдите в «Возврат» ещё раз.</p>
+<div class="callout"><p><strong>Проверяйте сами</strong>Исходный код открыт. Если вы не готовы доверять сборке, соберите программу из исходников: инструкция есть в README репозитория.</p></div>
+
+      <div class="cta-box">
+        <h2>Вернуть приложение на iPhone</h2>
+        <p>Бесплатно, с открытым исходным кодом, для Windows, macOS и Linux.</p>
+        <a class="btn" href="../../index.html#download">Скачать «Возврат»</a>
+      </div>
+      <div class="related"><h3>Читайте также</h3><ul><li><a href="../kak-vernut-udalennye-prilozheniya/index.html">Как вернуть удалённые из App Store приложения на iPhone</a></li><li><a href="../ne-v-istorii-pokupok/index.html">«Этого приложения нет в истории покупок»: что делать</a></li><li><a href="../staraya-versiya-prilozheniya/index.html">Как поставить старую версию приложения, если не хватает iOS</a></li><li><a href="../kak-eto-rabotaet/index.html">Как устроен «Возврат»: ipatool, pymobiledevice3 и локальный сервер</a></li></ul></div>
+    </article>
+  </main>
+  <footer>
+    <div class="wrap">
+      <div>
+        <p>Проект для личного использования. Он не связан с Apple и не распространяет чужие приложения: всё скачивается с серверов Apple под вашим Apple ID и только из вашей истории покупок.</p>
+        <p>Используются ipatool (MIT) и pymobiledevice3 (GPL-3.0). &copy; 2026 n0hard.</p>
+      </div>
+      <div class="foot-links"><a href="https://github.com/n0hard/back-to-iphone" target="_blank" rel="noopener noreferrer">GitHub</a><a href="../../blog/index.html">Блог</a><a href="#top">Наверх</a></div>
+    </div>
+  </footer>
+  <script>
+  (function () {
+    var burger = document.getElementById('burger'), menu = document.getElementById('menu');
+    function setMenu(o) { menu.classList.toggle('open', o); burger.setAttribute('aria-expanded', String(o)); }
+    burger.addEventListener('click', function () { setMenu(!menu.classList.contains('open')); });
+    Array.prototype.forEach.call(menu.querySelectorAll('a'), function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setMenu(false); });
+    Array.prototype.forEach.call(document.querySelectorAll('.code'), function (box) {
+      var btn = box.querySelector('.copy'); if (!btn) return;
+      var txt = box.querySelector('span').textContent.trim();
+      btn.addEventListener('click', function () {
+        function ok() { btn.textContent = 'Скопировано'; btn.classList.add('done'); setTimeout(function () { btn.textContent = 'Копировать'; btn.classList.remove('done'); }, 1600); }
+        function fb() { var ta = document.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); ok(); } catch (e) { btn.textContent = 'Ошибка'; } document.body.removeChild(ta); }
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).then(ok, fb); else fb();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.shot img'), function (img) {
+      img.addEventListener('click', function () {
+        var lb = document.createElement('div'); lb.className = 'lb'; lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-label', img.alt);
+        lb.innerHTML = '<img alt=""><button type="button" aria-label="Закрыть">✕</button>';
+        lb.querySelector('img').src = img.src;
+        function close() { document.removeEventListener('keydown', esc); lb.remove(); img.focus(); }
+        function esc(e) { if (e.key === 'Escape') close(); }
+        lb.addEventListener('click', close); document.addEventListener('keydown', esc);
+        document.body.appendChild(lb); lb.querySelector('button').focus();
+      });
+    });
+    var f = document.querySelectorAll('.filters [data-f]');
+    if (f.length) {
+      var items = document.querySelectorAll('[data-tag]'), empty = document.getElementById('empty');
+      Array.prototype.forEach.call(f, function (b) {
+        b.addEventListener('click', function () {
+          Array.prototype.forEach.call(f, function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+          var v = b.getAttribute('data-f'), n = 0;
+          Array.prototype.forEach.call(items, function (it) { var show = v === 'all' || it.getAttribute('data-tag') === v; it.hidden = !show; if (show) n++; });
+          empty.hidden = n > 0;
+        });
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

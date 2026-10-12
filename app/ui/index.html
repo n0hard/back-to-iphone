@@ -81,6 +81,14 @@
   .cat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
   .cat-head input { max-width: 240px; padding: 6px 10px; }
   .cat-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 0; }
+  .search { position: relative; }
+  .sugg { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5; background: var(--card); border: 1px solid var(--line);
+          border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.18); padding: 4px; max-height: 360px; overflow: auto; }
+  .sugg-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+  .sugg-item.on, .sugg-item:hover { background: var(--accent-2); }
+  .sugg-item .icon { width: 32px; height: 32px; border-radius: 8px; font-size: 14px; flex: none; }
+  .sugg-item .muted { font-size: 12px; }
+  .sugg-empty { padding: 10px; color: var(--muted); font-size: 13px; }
   details summary { cursor: pointer; font-weight: 600; }
   details p { margin: 6px 0; color: var(--muted); font-size: 14px; }
 </style>
@@ -125,7 +133,11 @@
     <h2><span class="num" id="n3">3</span>Приложение</h2>
     <div id="queueInfo"></div>
     <div class="row">
-      <input type="text" id="q" placeholder="Название, App Store ID или ссылка apps.apple.com/…/id123456789">
+      <div class="search">
+        <input type="text" id="q" placeholder="Поиск по каталогу: название, App Store ID или ссылка apps.apple.com/…/id123456789"
+               autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sugg">
+        <div class="sugg hidden" id="sugg" role="listbox"></div>
+      </div>
       <button id="searchBtn">Найти</button>
     </div>
     <div class="err" id="searchErr"></div>
@@ -302,13 +314,80 @@ function renderGroup(key) {
 }
 function updateAct(appId) { (groupKeys[appId] || []).forEach(renderGroup); }
 
+// Поиск только по каталогу. Всё сводится к латинице без регистра, чтобы «макс», «max» и «МАКС» совпадали,
+// а «мессенджер» и «messenger» давали одно и то же; небольшие опечатки прощаются.
+const CYR = {а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:"i",й:"i",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",
+  р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"ts",ч:"ch",ш:"sh",щ:"sch",ъ:"",ы:"y",ь:"",э:"e",ю:"yu",я:"ya"};
+function norm(s) {
+  return String(s).toLowerCase().replace(/дж/g, "g").replace(/[а-яё]/g, c => CYR[c])
+    // c → k всегда (и в «ch»): иначе недописанное «GigaC» не совпадёт с началом «GigaChat»
+    .replace(/x/g, "ks").replace(/w/g, "v").replace(/ph/g, "f").replace(/ck/g, "k").replace(/c/g, "k").replace(/j/g, "g")
+    .replace(/y/g, "i");  // «Hay Day» = «хай дай», «Yandex» = «яндекс» (я → ya → ia)
+}
+const words = s => norm(s).split(/[^a-z0-9]+/).filter(Boolean);
+function near(a, b) {  // расстояние Левенштейна не больше допустимого (для коротких слов — только точно)
+  const max = a.length >= 8 ? 2 : a.length >= 4 ? 1 : 0;
+  if (Math.abs(a.length - b.length) > max) return false;
+  let prev = Array.from({length: b.length + 1}, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length] <= max;
+}
+function tokenScore(t, list, short) {  // лучшее совпадение слова запроса со словами названия
+  let best = 0;                         // short — разрешить совпадение по одной первой букве («Банк С»)
+  for (const w of list) {
+    if (w === t) return 3;
+    if (w.startsWith(t) && (t.length >= 2 || short)) best = Math.max(best, 2);
+    else if (t.length >= 4 && (w.includes(t) || near(t, w))) best = Math.max(best, 1.5);
+  }
+  return best;
+}
+// Разговорные и старые названия популярных приложений: слово запроса → название карточки каталога
+const ALIASES = {"ВКонтакте": "вк vk", "СберБанк Онлайн": "сбер сбол sber", "Т-Банк": "тинькофф tinkoff тбанк tbank",
+                 "Почта Mail.ru": "mail мейл", "MAX": "макс"};
+function groupIndex(g) {
+  // Слитное написание тоже считается названием: «АльфаБанк» = «Альфа-Банк», «сбербанконлайн» = «СберБанк Онлайн»
+  const joined = words(g.title).join("");
+  return g._idx ||= {title: [...words(g.title + " " + (ALIASES[g.title] || "")), joined], names: words(g.apps.map(a => a.name).join(" ")),
+                     cat: words(g.category || "")};
+}
+// Возвращает группы каталога, отсортированные по релевантности. ID и ссылки ищутся по точному ID.
+function searchCatalog(query) {
+  const id = (query.match(/(?:^|\/id|\bid)(\d{6,})(?:\D|$)/) || [])[1];
+  if (id) return catalogGroups.filter(g => g.apps.some(a => String(a.id) === id));
+  const q = words(query);
+  if (!q.length) return [];
+  const scored = [];
+  for (const g of catalogGroups) {
+    const ix = groupIndex(g);
+    let score = 0, inName = 0;
+    for (const t of q) {
+      const short = q.length > 1;
+      const s = Math.max(tokenScore(t, ix.title, short), tokenScore(t, ix.names, short) - 0.5);
+      if (s) { score += s; inName++; }
+      else if (tokenScore(t, ix.cat)) score += 0.5;
+    }
+    if (!inName) continue;
+    if (words(g.title).every(w => q.some(t => tokenScore(t, [w]) >= 2))) score += 1;  // запрос покрывает всё название
+    if (g.apps.some(a => a.name.toLowerCase() === query.trim().toLowerCase()) || g.title.toLowerCase() === query.trim().toLowerCase())
+      score += 2;  // точное название, в том числе со знаками: «Happ-Proxy Utility+» ≠ «Happ-Proxy Utility»
+    scored.push({g, score, order: scored.length});
+  }
+  // Слабые совпадения (одна опечатка или только похожее слово) не показываем, если есть сильные.
+  // При равенстве — порядок каталога: в нём основные приложения стоят первыми.
+  const best = Math.max(0, ...scored.map(x => x.score));
+  return scored.filter(x => x.score >= Math.max(1.5, best / 2))
+    .sort((a, b) => b.score - a.score || a.order - b.order).map(x => x.g);
+}
+
 let catalog = [], catalogGroups = [];
 function renderCatalog() {
-  const f = $("catFilter").value.trim().toLowerCase();
+  const f = $("catFilter").value.trim();
   const byCat = {};
-  catalogGroups.filter(g => !f || g.title.toLowerCase().includes(f) ||
-                            g.apps.some(a => a.name.toLowerCase().includes(f) || String(a.id).includes(f)))
-    .forEach(g => (byCat[g.category || "Другое"] ||= []).push(g));
+  (f ? searchCatalog(f) : catalogGroups).forEach(g => (byCat[g.category || "Другое"] ||= []).push(g));
   $("catalog").innerHTML = Object.entries(byCat).map(([c, list]) =>
     `<p class="cat-title">${esc(c)}</p><div class="grid">${list.map(groupCard).join("")}</div>`).join("")
     || `<div class="muted" style="margin-top:12px">Ничего не найдено</div>`;
@@ -327,17 +406,60 @@ function bindInstall(root) {
   });
 }
 
+function showResults(list) {
+  $("searchErr").textContent = "";
+  $("results").innerHTML = list.length ? list.map(groupCard).join("")
+    : `<div class="muted">В каталоге такого приложения нет. Проверьте название или введите App Store ID.</div>`;
+  bindInstall($("results"));
+}
+
+// Подсказки под строкой поиска: появляются при вводе, стрелки ↑/↓ выбирают, Enter открывает
+let suggList = [], suggOn = -1;
+function closeSugg() { $("sugg").classList.add("hidden"); $("q").setAttribute("aria-expanded", "false"); suggOn = -1; }
+function renderSugg() {
+  const q = $("q").value.trim();
+  if (!q) { closeSugg(); return; }
+  suggList = searchCatalog(q).slice(0, 8);
+  $("sugg").innerHTML = suggList.length ? suggList.map((g, i) => {
+    const face = g.main || g.apps[0], n = g.apps.length;
+    const icon = face.icon ? `<img src="${esc(face.icon)}" alt="">` : esc((g.title || "?")[0]);
+    const style = face.icon ? "" : `style="background:${esc(face.color || "var(--accent)")}"`;
+    return `<div class="sugg-item ${i === suggOn ? "on" : ""}" role="option" id="sugg${i}" data-i="${i}">
+      <div class="icon" ${style}>${icon}</div><div><b>${esc(g.title)}</b>
+      <div class="muted">${esc(g.category || "")}${n > 1 ? ` · ${n} ${plural(n, "вариант", "варианта", "вариантов")}` : ""}</div></div></div>`;
+  }).join("") : `<div class="sugg-empty">В каталоге не найдено</div>`;
+  $("sugg").classList.remove("hidden"); $("q").setAttribute("aria-expanded", "true");
+  if (suggOn >= 0) $("q").setAttribute("aria-activedescendant", "sugg" + suggOn); else $("q").removeAttribute("aria-activedescendant");
+  $("sugg").querySelectorAll(".sugg-item").forEach(el => el.onmousedown = e => { e.preventDefault(); pickSugg(+el.dataset.i); });
+}
+function pickSugg(i) {
+  const g = suggList[i]; if (!g) return;
+  $("q").value = g.title; closeSugg(); showResults([g]);
+}
+
 $("searchBtn").onclick = async () => {
   const q = $("q").value.trim(); if (!q) return;
-  $("searchErr").textContent = ""; $("results").innerHTML = `<div class="muted">Ищу…</div>`;
+  closeSugg();
+  const found = searchCatalog(q);
+  const id = (q.match(/(?:^|\/id|\bid)(\d{6,})(?:\D|$)/) || [])[1];
+  if (found.length || !id) { showResults(found); return; }
+  // ID, которого нет в каталоге: приложение можно поставить напрямую по ID, как и раньше
+  $("searchErr").textContent = ""; $("results").innerHTML = `<div class="muted">Проверяю ID…</div>`;
   try {
-    const r = await api("/api/search?q=" + encodeURIComponent(q));
-    const found = makeGroups(r.results.map(a => ({...a, category: "Поиск"})), "search" + Date.now());
-    $("results").innerHTML = found.length ? found.map(groupCard).join("") : `<div class="muted">Ничего не найдено. Удалённые приложения ищите по App Store ID.</div>`;
-    bindInstall($("results"));
+    const r = await api("/api/search?q=" + encodeURIComponent(id));
+    showResults(makeGroups(r.results.map(a => ({...a, category: "По ID"})), "id" + Date.now()));
   } catch (e) { $("results").innerHTML = ""; $("searchErr").textContent = e.message; }
 };
-$("q").onkeydown = e => { if (e.key === "Enter") $("searchBtn").click(); };
+$("q").oninput = () => { suggOn = -1; renderSugg(); };
+$("q").onfocus = renderSugg;
+$("q").onblur = closeSugg;
+$("q").onkeydown = e => {
+  const open = !$("sugg").classList.contains("hidden") && suggList.length;
+  if (e.key === "ArrowDown" && open) { e.preventDefault(); suggOn = (suggOn + 1) % suggList.length; renderSugg(); }
+  else if (e.key === "ArrowUp" && open) { e.preventDefault(); suggOn = (suggOn - 1 + suggList.length) % suggList.length; renderSugg(); }
+  else if (e.key === "Escape") closeSugg();
+  else if (e.key === "Enter") { if (open && suggOn >= 0) pickSugg(suggOn); else $("searchBtn").click(); }
+};
 
 // Окно: список вариантов группы и/или версий одного приложения (версии — порциями по 10)
 let verApp = null, verOffset = 0;

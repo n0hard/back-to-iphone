@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Почему не приходят push-уведомления у восстановленных приложений — Возврат</title>
+  <meta name="description" content="Приложение работает, а пуши нет. Это ограничение Apple, а не программы." />
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="canonical" href="https://n0hard.github.io/back-to-iphone/blog/ne-prihodyat-push/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:locale" content="ru_RU" />
+  <meta property="og:site_name" content="Возврат" />
+  <meta property="og:title" content="Почему не приходят push-уведомления у восстановленных приложений — Возврат" />
+  <meta property="og:description" content="Приложение работает, а пуши нет. Это ограничение Apple, а не программы." />
+  <meta property="og:url" content="https://n0hard.github.io/back-to-iphone/blog/ne-prihodyat-push/" />
+  <meta property="og:image" content="https://n0hard.github.io/back-to-iphone/og-image.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="stylesheet" href="../../site.css" />
+</head>
+<body id="top">
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="../../index.html" aria-label="Возврат — на главную"><span class="brand-ico" aria-hidden="true">↺</span>Возврат</a>
+      <ul class="menu" id="menu">
+        <li><a href="../../index.html#features">Возможности</a></li>
+        <li><a href="../../index.html#how">Как это работает</a></li>
+        <li><a href="../../index.html#download">Скачать</a></li>
+        <li><a href="../../blog/index.html" class="active">Блог</a></li>
+        <li><a href="../../index.html#faq">Вопросы</a></li>
+        <li><a href="https://github.com/n0hard/back-to-iphone" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+      </ul>
+      <div class="nav-cta">
+        <a class="btn sm" href="../../index.html#download">Скачать</a>
+        <button class="burger" id="burger" aria-label="Меню" aria-expanded="false" aria-controls="menu"><span></span><span></span></button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <article class="article">
+      <p class="crumbs"><a href="../index.html">← Блог</a></p>
+      <span class="tag">Разбор</span><span class="meta">3 мин</span>
+      <h1>Почему не приходят push-уведомления у восстановленных приложений</h1>
+      <p class="lede">Приложение работает, а пуши нет. Это ограничение Apple, а не программы.</p>
+      
+<p>Часть пользователей замечает, что восстановленное приложение открывается и работает, но push-уведомления не приходят.</p>
+<h2>В чём причина</h2>
+<p>Для части удалённых из магазина приложений Apple отключила push-уведомления. Это ограничение на стороне Apple: программа его не создаёт и обойти не может.</p>
+<figure class="shot"><div class="frame"><img src="../../img/queue-cards.png" width="728" height="250" loading="lazy" alt="Если в карточке написано «Установлено», приложение поставлено корректно — отсутствие пушей с установкой не связано" /></div><figcaption>Если в карточке написано «Установлено», приложение поставлено корректно — отсутствие пушей с установкой не связано</figcaption></figure>
+<h2>Что можно сделать</h2>
+<ul><li>Проверьте, что уведомления для приложения разрешены в настройках iPhone.</li><li>Если приложение умеет сообщать о событиях другим способом (например, SMS или письмом), включите его.</li><li>Учтите это заранее, если для вас критичны мгновенные уведомления.</li></ul>
+
+      <div class="cta-box">
+        <h2>Вернуть приложение на iPhone</h2>
+        <p>Бесплатно, с открытым исходным кодом, для Windows, macOS и Linux.</p>
+        <a class="btn" href="../../index.html#download">Скачать «Возврат»</a>
+      </div>
+      <div class="related"><h3>Читайте также</h3><ul><li><a href="../kak-vernut-udalennye-prilozheniya/index.html">Как вернуть удалённые из App Store приложения на iPhone</a></li><li><a href="../ne-v-istorii-pokupok/index.html">«Этого приложения нет в истории покупок»: что делать</a></li><li><a href="../staraya-versiya-prilozheniya/index.html">Как поставить старую версию приложения, если не хватает iOS</a></li><li><a href="../kak-eto-rabotaet/index.html">Как устроен «Возврат»: ipatool, pymobiledevice3 и локальный сервер</a></li></ul></div>
+    </article>
+  </main>
+  <footer>
+    <div class="wrap">
+      <div>
+        <p>Проект для личного использования. Он не связан с Apple и не распространяет чужие приложения: всё скачивается с серверов Apple под вашим Apple ID и только из вашей истории покупок.</p>
+        <p>Используются ipatool (MIT) и pymobiledevice3 (GPL-3.0). &copy; 2026 n0hard.</p>
+      </div>
+      <div class="foot-links"><a href="https://github.com/n0hard/back-to-iphone" target="_blank" rel="noopener noreferrer">GitHub</a><a href="../../blog/index.html">Блог</a><a href="#top">Наверх</a></div>
+    </div>
+  </footer>
+  <script>
+  (function () {
+    var burger = document.getElementById('burger'), menu = document.getElementById('menu');
+    function setMenu(o) { menu.classList.toggle('open', o); burger.setAttribute('aria-expanded', String(o)); }
+    burger.addEventListener('click', function () { setMenu(!menu.classList.contains('open')); });
+    Array.prototype.forEach.call(menu.querySelectorAll('a'), function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setMenu(false); });
+    Array.prototype.forEach.call(document.querySelectorAll('.code'), function (box) {
+      var btn = box.querySelector('.copy'); if (!btn) return;
+      var txt = box.querySelector('span').textContent.trim();
+      btn.addEventListener('click', function () {
+        function ok() { btn.textContent = 'Скопировано'; btn.classList.add('done'); setTimeout(function () { btn.textContent = 'Копировать'; btn.classList.remove('done'); }, 1600); }
+        function fb() { var ta = document.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); ok(); } catch (e) { btn.textContent = 'Ошибка'; } document.body.removeChild(ta); }
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).then(ok, fb); else fb();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.shot img'), function (img) {
+      img.addEventListener('click', function () {
+        var lb = document.createElement('div'); lb.className = 'lb'; lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-label', img.alt);
+        lb.innerHTML = '<img alt=""><button type="button" aria-label="Закрыть">✕</button>';
+        lb.querySelector('img').src = img.src;
+        function close() { document.removeEventListener('keydown', esc); lb.remove(); img.focus(); }
+        function esc(e) { if (e.key === 'Escape') close(); }
+        lb.addEventListener('click', close); document.addEventListener('keydown', esc);
+        document.body.appendChild(lb); lb.querySelector('button').focus();
+      });
+    });
+    var f = document.querySelectorAll('.filters [data-f]');
+    if (f.length) {
+      var items = document.querySelectorAll('[data-tag]'), empty = document.getElementById('empty');
+      Array.prototype.forEach.call(f, function (b) {
+        b.addEventListener('click', function () {
+          Array.prototype.forEach.call(f, function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+          var v = b.getAttribute('data-f'), n = 0;
+          Array.prototype.forEach.call(items, function (it) { var show = v === 'all' || it.getAttribute('data-tag') === v; it.hidden = !show; if (show) n++; });
+          empty.hidden = n > 0;
+        });
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

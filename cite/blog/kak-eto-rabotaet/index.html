@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Как устроен «Возврат»: ipatool, pymobiledevice3 и локальный сервер — Возврат</title>
+  <meta name="description" content="Что происходит между нажатием «Установить» и иконкой на экране iPhone." />
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="canonical" href="https://n0hard.github.io/back-to-iphone/blog/kak-eto-rabotaet/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:locale" content="ru_RU" />
+  <meta property="og:site_name" content="Возврат" />
+  <meta property="og:title" content="Как устроен «Возврат»: ipatool, pymobiledevice3 и локальный сервер — Возврат" />
+  <meta property="og:description" content="Что происходит между нажатием «Установить» и иконкой на экране iPhone." />
+  <meta property="og:url" content="https://n0hard.github.io/back-to-iphone/blog/kak-eto-rabotaet/" />
+  <meta property="og:image" content="https://n0hard.github.io/back-to-iphone/og-image.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="stylesheet" href="../../site.css" />
+</head>
+<body id="top">
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="../../index.html" aria-label="Возврат — на главную"><span class="brand-ico" aria-hidden="true">↺</span>Возврат</a>
+      <ul class="menu" id="menu">
+        <li><a href="../../index.html#features">Возможности</a></li>
+        <li><a href="../../index.html#how">Как это работает</a></li>
+        <li><a href="../../index.html#download">Скачать</a></li>
+        <li><a href="../../blog/index.html" class="active">Блог</a></li>
+        <li><a href="../../index.html#faq">Вопросы</a></li>
+        <li><a href="https://github.com/n0hard/back-to-iphone" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+      </ul>
+      <div class="nav-cta">
+        <a class="btn sm" href="../../index.html#download">Скачать</a>
+        <button class="burger" id="burger" aria-label="Меню" aria-expanded="false" aria-controls="menu"><span></span><span></span></button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <article class="article">
+      <p class="crumbs"><a href="../index.html">← Блог</a></p>
+      <span class="tag">Объяснение</span><span class="meta">5 мин</span>
+      <h1>Как устроен «Возврат»: ipatool, pymobiledevice3 и локальный сервер</h1>
+      <p class="lede">Что происходит между нажатием «Установить» и иконкой на экране iPhone.</p>
+      
+<p>«Возврат» состоит из локального сервера на вашем компьютере и двух готовых инструментов с открытым кодом.</p>
+<figure class="shot narrow"><div class="frame"><img src="../../img/main.png" width="780" height="1100" loading="lazy" alt="Интерфейс программы: три шага — Apple ID, iPhone и приложение" /></div><figcaption>Интерфейс программы: три шага — Apple ID, iPhone и приложение</figcaption></figure>
+<h2>Схема</h2>
+<div class="code" style="padding-right:16px"><span>Интерфейс (окно / браузер) ─► локальный сервер 127.0.0.1 ─┬─► ipatool ─────────► App Store (вход, IPA)
+                                                          └─► pymobiledevice3 ─► iPhone по USB</span></div>
+<h2>Зачем нужен ipatool</h2>
+<p>Чтобы войти в App Store, Apple требует подпись SAP (FairPlay). Её умеет вычислять <a href="https://github.com/majd/ipatool" target="_blank" rel="noopener noreferrer">ipatool</a> (лицензия MIT): он эмулирует код Apple. Своя реализация протокола без него получает от Apple пустой ответ. Через ipatool программа входит в аккаунт и скачивает IPA вместе с <code>sinf</code> и <code>iTunesMetadata</code>.</p>
+<h2>Зачем нужен pymobiledevice3</h2>
+<p><a href="https://github.com/doronz88/pymobiledevice3" target="_blank" rel="noopener noreferrer">pymobiledevice3</a> (GPL-3.0) находит iPhone на USB и устанавливает на него скачанный пакет. На Windows для этого нужен драйвер Apple, на Linux — служба <code>usbmuxd</code>, на macOS всё встроено.</p>
+<h2>Где хранятся данные</h2>
+<p>В папке программы: <code>%APPDATA%\vozvrat</code> на Windows, <code>~/Library/Application Support/Vozvrat</code> на macOS, <code>~/.local/share/vozvrat</code> на Linux. Там лежат ключ от хранилища ipatool и временные IPA. Общий <code>~/.ipatool</code> на Windows и Linux не используется, чтобы не мешать другим программам на ipatool.</p>
+<h2>Открытый код</h2>
+<p>Весь код доступен <a href="https://github.com/n0hard/back-to-iphone" target="_blank" rel="noopener noreferrer">на GitHub</a>: можно проверить, что именно делает программа, или собрать её самостоятельно.</p>
+
+      <div class="cta-box">
+        <h2>Вернуть приложение на iPhone</h2>
+        <p>Бесплатно, с открытым исходным кодом, для Windows, macOS и Linux.</p>
+        <a class="btn" href="../../index.html#download">Скачать «Возврат»</a>
+      </div>
+      <div class="related"><h3>Читайте также</h3><ul><li><a href="../kak-vernut-udalennye-prilozheniya/index.html">Как вернуть удалённые из App Store приложения на iPhone</a></li><li><a href="../ne-v-istorii-pokupok/index.html">«Этого приложения нет в истории покупок»: что делать</a></li><li><a href="../staraya-versiya-prilozheniya/index.html">Как поставить старую версию приложения, если не хватает iOS</a></li><li><a href="../bezopasnost-apple-id/index.html">Безопасно ли вводить пароль Apple ID в «Возврате»</a></li></ul></div>
+    </article>
+  </main>
+  <footer>
+    <div class="wrap">
+      <div>
+        <p>Проект для личного использования. Он не связан с Apple и не распространяет чужие приложения: всё скачивается с серверов Apple под вашим Apple ID и только из вашей истории покупок.</p>
+        <p>Используются ipatool (MIT) и pymobiledevice3 (GPL-3.0). &copy; 2026 n0hard.</p>
+      </div>
+      <div class="foot-links"><a href="https://github.com/n0hard/back-to-iphone" target="_blank" rel="noopener noreferrer">GitHub</a><a href="../../blog/index.html">Блог</a><a href="#top">Наверх</a></div>
+    </div>
+  </footer>
+  <script>
+  (function () {
+    var burger = document.getElementById('burger'), menu = document.getElementById('menu');
+    function setMenu(o) { menu.classList.toggle('open', o); burger.setAttribute('aria-expanded', String(o)); }
+    burger.addEventListener('click', function () { setMenu(!menu.classList.contains('open')); });
+    Array.prototype.forEach.call(menu.querySelectorAll('a'), function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setMenu(false); });
+    Array.prototype.forEach.call(document.querySelectorAll('.code'), function (box) {
+      var btn = box.querySelector('.copy'); if (!btn) return;
+      var txt = box.querySelector('span').textContent.trim();
+      btn.addEventListener('click', function () {
+        function ok() { btn.textContent = 'Скопировано'; btn.classList.add('done'); setTimeout(function () { btn.textContent = 'Копировать'; btn.classList.remove('done'); }, 1600); }
+        function fb() { var ta = document.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); ok(); } catch (e) { btn.textContent = 'Ошибка'; } document.body.removeChild(ta); }
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).then(ok, fb); else fb();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.shot img'), function (img) {
+      img.addEventListener('click', function () {
+        var lb = document.createElement('div'); lb.className = 'lb'; lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-label', img.alt);
+        lb.innerHTML = '<img alt=""><button type="button" aria-label="Закрыть">✕</button>';
+        lb.querySelector('img').src = img.src;
+        function close() { document.removeEventListener('keydown', esc); lb.remove(); img.focus(); }
+        function esc(e) { if (e.key === 'Escape') close(); }
+        lb.addEventListener('click', close); document.addEventListener('keydown', esc);
+        document.body.appendChild(lb); lb.querySelector('button').focus();
+      });
+    });
+    var f = document.querySelectorAll('.filters [data-f]');
+    if (f.length) {
+      var items = document.querySelectorAll('[data-tag]'), empty = document.getElementById('empty');
+      Array.prototype.forEach.call(f, function (b) {
+        b.addEventListener('click', function () {
+          Array.prototype.forEach.call(f, function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+          var v = b.getAttribute('data-f'), n = 0;
+          Array.prototype.forEach.call(items, function (it) { var show = v === 'all' || it.getAttribute('data-tag') === v; it.hidden = !show; if (show) n++; });
+          empty.hidden = n > 0;
+        });
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

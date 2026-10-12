@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://n0hard.github.io/back-to-iphone/sitemap.xml

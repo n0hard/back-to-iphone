@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>Возврат — удалённые приложения обратно на iPhone</title>
+  <meta name="description" content="Бесплатная программа с открытым исходным кодом для Windows, macOS и Linux. Возвращает на iPhone приложения, удалённые из российского App Store: оригинальный IPA из истории покупок Apple ID, установка по USB, без джейлбрейка." />
+  <meta name="author" content="n0hard" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="format-detection" content="telephone=no" />
+  <link rel="canonical" href="https://n0hard.github.io/back-to-iphone/" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="ru_RU" />
+  <meta property="og:url" content="https://n0hard.github.io/back-to-iphone/" />
+  <meta property="og:site_name" content="Возврат" />
+  <meta property="og:title" content="Возврат — удалённые приложения обратно на iPhone" />
+  <meta property="og:description" content="Банки, VK, Авито и другие приложения, удалённые из российского App Store. Оригинальный IPA с подписью Apple, без джейлбрейка." />
+  <meta property="og:image" content="https://n0hard.github.io/back-to-iphone/og-image.jpg" />
+  <meta property="og:image:width" content="1376" />
+  <meta property="og:image:height" content="768" />
+  <meta property="og:image:alt" content="Возврат — программа для возврата приложений на iPhone" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Возврат — удалённые приложения обратно на iPhone" />
+  <meta name="twitter:description" content="Оригинальный IPA с подписью Apple, установка по USB, без джейлбрейка." />
+  <meta name="twitter:image" content="https://n0hard.github.io/back-to-iphone/og-image.jpg" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "Возврат",
+        "alternateName": "back-to-iphone",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Windows 10/11, macOS 12+, Linux x86_64",
+        "downloadUrl": "https://github.com/n0hard/back-to-iphone/releases",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "RUB" },
+        "description": "Бесплатная программа с открытым исходным кодом: скачивает оригинальный IPA из истории покупок Apple ID и устанавливает его на iPhone по USB.",
+        "author": { "@type": "Person", "name": "n0hard", "url": "https://github.com/n0hard" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          { "@type": "Question", "name": "Нужен ли джейлбрейк?", "acceptedAnswer": { "@type": "Answer", "text": "Нет. Приложение скачивается с оригинальной подписью Apple и ставится по USB. Оно не «протухает» через 7 дней." } },
+          { "@type": "Question", "name": "Что делать, если пишет «Этого приложения нет в истории покупок»?", "acceptedAnswer": { "@type": "Answer", "text": "Приложение не скачивалось с этого Apple ID. Попробуйте другой вариант в «Все варианты…» или другой аккаунт." } },
+          { "@type": "Question", "name": "Безопасно ли вводить пароль Apple ID?", "acceptedAnswer": { "@type": "Answer", "text": "Программа работает локально на 127.0.0.1, пароль передаётся только на серверы Apple. Код открыт и доступен для проверки на GitHub." } }
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <link rel="stylesheet" href="site.css" />
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+<body id="top">
+  <a href="#main" class="sr-only skip">Перейти к содержимому</a>
+
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="#top" aria-label="Возврат — в начало"><span class="brand-ico" aria-hidden="true">↺</span>Возврат</a>
+      <ul class="menu" id="menu">
+        <li><a href="#features">Возможности</a></li>
+        <li><a href="#screens">Интерфейс</a></li>
+        <li><a href="#how">Как это работает</a></li>
+        <li><a href="#compare">Сравнение</a></li>
+        <li><a href="#download">Скачать</a></li>
+        <li><a href="blog/index.html">Блог</a></li>
+        <li><a href="#faq">Вопросы</a></li>
+        <li><a href="https://github.com/n0hard/back-to-iphone" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+      </ul>
+      <div class="nav-cta">
+        <a class="btn sm" href="#download">Скачать</a>
+        <button class="burger" id="burger" aria-label="Меню" aria-expanded="false" aria-controls="menu"><span></span><span></span></button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- HERO -->
+    <section class="hero" style="padding-bottom:0">
+      <div class="wrap">
+        <p class="eyebrow">Возврат</p>
+        <h1>Ваши приложения.<br><span class="grad">Снова на iPhone.</span></h1>
+        <p class="lead">Банки, VK, Авито и другие приложения, удалённые из российского App Store. Оригинальная подпись Apple. Без джейлбрейка.</p>
+        <div class="cta-row">
+          <a class="btn" href="#download">Скачать бесплатно</a>
+          <a class="linkmore" href="#how">Как это работает</a>
+        </div>
+        <div class="hero-shot reveal">
+          <div class="window">
+            <div class="window-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="window-title">Возврат</span></div>
+            <div class="window-body"><img src="img/main.png" width="780" height="1100" alt="Главное окно программы: вход в Apple ID, выбор iPhone и каталог приложений" /></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features" class="alt">
+      <div class="wrap">
+        <div class="head reveal">
+          <h2>Всё, что нужно.<br>Ничего лишнего.</h2>
+          <p>Оригинальный IPA из истории покупок вашего Apple ID и установка по кабелю.</p>
+        </div>
+        <div class="bento">
+          <article class="tile s4 dk reveal">
+            <div class="kicker">Подпись Apple</div>
+            <h3>Как из App Store.</h3>
+            <p>Приложение скачивается с оригинальной подписью Apple и привязано к вашему Apple ID. Никаких профилей разработчика и переподписи сертификатами — приложение не «протухает» через 7 дней.</p>
+            <div class="big">∞<small>срок работы</small></div>
+          </article>
+          <article class="tile s2 reveal">
+            <div class="kicker">Каталог</div>
+            <h3>Каталог удалённых</h3>
+            <p>Собраны в 213 карточек по категориям, с иконками и фильтром.</p>
+            <div class="big">441</div>
+          </article>
+          <article class="tile s2 reveal">
+            <div class="kicker">Версии</div>
+            <h3>Подходящая версия</h3>
+            <p>Последняя версия не работает на вашей iOS? Выберите более старую из тех, что хранит Apple.</p>
+          </article>
+          <article class="tile s2 reveal">
+            <div class="kicker">Очередь</div>
+            <h3>Несколько сразу</h3>
+            <p>Нажмите «Установить» у нескольких приложений: они встанут в очередь, ожидающие можно отменить.</p>
+          </article>
+          <article class="tile s2 reveal">
+            <div class="kicker">Проверка</div>
+            <h3>Совместимость</h3>
+            <p>Перед установкой программа сверяет минимальную iOS и поддержку вашего iPhone.</p>
+          </article>
+          <article class="tile s3 reveal">
+            <div class="kicker">Приватность</div>
+            <h3>Всё локально</h3>
+            <p>Программа работает на 127.0.0.1 вашего компьютера. Пароль уходит только на серверы Apple, а двухфакторная аутентификация поддерживается.</p>
+          </article>
+          <article class="tile s3 reveal">
+            <div class="kicker">Открытый код</div>
+            <h3>Бесплатно навсегда</h3>
+            <p>Проект с открытым исходным кодом для Windows, macOS и Linux. Любое приложение можно поставить по App Store ID или ссылке.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREENS -->
+    <section id="screens" class="black">
+      <div class="wrap">
+        <div class="head reveal">
+          <h2>Просто. Как должно быть.</h2>
+          <p>Скриншоты сделаны на демо-данных: аккаунт и iPhone вымышленные.</p>
+        </div>
+        <div class="tabs on-dark" role="tablist" aria-label="Экраны программы" data-tabs="screens">
+          <button class="tab" role="tab" id="t-main" aria-controls="p-main" aria-selected="true">Каталог</button>
+          <button class="tab" role="tab" id="t-variants" aria-controls="p-variants" aria-selected="false" tabindex="-1">Варианты</button>
+          <button class="tab" role="tab" id="t-versions" aria-controls="p-versions" aria-selected="false" tabindex="-1">Версии</button>
+          <button class="tab" role="tab" id="t-queue" aria-controls="p-queue" aria-selected="false" tabindex="-1">Очередь</button>
+        </div>
+
+        <div class="panel" id="p-main" role="tabpanel" aria-labelledby="t-main">
+          <div class="shots-grid">
+            <div class="window"><div class="window-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="window-title">Возврат</span></div><div class="window-body"><img src="img/main.png" width="780" height="1100" loading="lazy" alt="Главное окно: Apple ID, iPhone, каталог" /></div></div>
+            <div class="shots-text">
+              <h3>Три шага до установки.</h3>
+              <p>Войдите в Apple ID, подключите iPhone и выберите приложение.</p>
+              <ul><li>Вход с двухфакторной аутентификацией</li><li>iPhone определяется автоматически</li><li>Поиск по каталогу с подсказками: понимает транслит и опечатки</li></ul>
+            </div>
+          </div>
+        </div>
+        <div class="panel" id="p-variants" role="tabpanel" aria-labelledby="t-variants" hidden>
+          <div class="shots-grid">
+            <div class="window"><div class="window-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="window-title">Возврат</span></div><div class="window-body"><img src="img/variants.png" width="780" height="1100" loading="lazy" alt="Окно вариантов Т-Банка" /></div></div>
+            <div class="shots-text">
+              <h3>Варианты одного бренда.</h3>
+              <p>Банки выходили под разными названиями. Ставьте тот вариант, который вы когда-то скачивали, — в истории покупок есть только он.</p>
+              <ul><li>Кнопка «Все варианты…» в карточке</li><li>Основное приложение — одним нажатием</li><li>Версию можно выбрать для каждого варианта</li></ul>
+            </div>
+          </div>
+        </div>
+        <div class="panel" id="p-versions" role="tabpanel" aria-labelledby="t-versions" hidden>
+          <div class="shots-grid">
+            <div class="window"><div class="window-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="window-title">Возврат</span></div><div class="window-body"><img src="img/versions.png" width="780" height="1100" loading="lazy" alt="Окно выбора версии ВКонтакте" /></div></div>
+            <div class="shots-text">
+              <h3>Версия под вашу iOS.</h3>
+              <p>Если последняя сборка требует более новую систему, поставьте более старую версию приложения.</p>
+              <ul><li>Список версий, которые хранит Apple</li><li>Номер и дата выхода каждой сборки</li><li>Проверка совместимости перед установкой</li></ul>
+            </div>
+          </div>
+        </div>
+        <div class="panel" id="p-queue" role="tabpanel" aria-labelledby="t-queue" hidden>
+          <div class="shots-grid">
+            <div class="window"><div class="window-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="window-title">Возврат</span></div><div class="window-body"><img src="img/queue.png" width="728" height="517" loading="lazy" alt="Очередь установок: прогресс, ожидание, готово" /></div></div>
+            <div class="shots-text">
+              <h3>Очередь установок.</h3>
+              <p>Нажмите «Установить» у нескольких приложений сразу. Они поставятся по очереди, а прогресс виден прямо в карточке.</p>
+              <ul><li>Ожидающие можно отменить</li><li>Прогресс скачивания и установки</li><li>Не отключайте кабель и не блокируйте экран</li></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW -->
+    <section id="how">
+      <div class="wrap">
+        <div class="head reveal">
+          <h2>Как это работает.</h2>
+          <p>Четыре шага. Всё происходит на вашем компьютере.</p>
+        </div>
+        <div class="steps">
+          <div class="step reveal"><div class="n">1</div><h3>Apple ID</h3><p>Входите в аккаунт, с которого приложение когда-то скачивалось. Первый вход может занять 1–3 минуты.</p></div>
+          <div class="step reveal"><div class="n">2</div><h3>iPhone</h3><p>Подключите кабель, разблокируйте телефон и нажмите «Доверять этому компьютеру».</p></div>
+          <div class="step reveal"><div class="n">3</div><h3>Загрузка</h3><p>Apple отдаёт оригинальный IPA с вашей подписью из истории покупок.</p></div>
+          <div class="step reveal"><div class="n">4</div><h3>Установка</h3><p>Программа ставит приложение на iPhone по USB. Готово.</p></div>
+        </div>
+<div class="flow reveal" aria-label="Схема работы">Интерфейс (окно / браузер) ─► локальный сервер <b>127.0.0.1</b> ─┬─► <b>ipatool</b> ───────────► App Store (вход, IPA)
+                                                          └─► <b>pymobiledevice3</b> ─► iPhone по USB</div>
+        <p class="note">Работает только для приложений, которые когда-то уже скачивались с вашего Apple ID.</p>
+      </div>
+    </section>
+
+    <!-- COMPARE -->
+    <section id="compare" class="alt">
+      <div class="wrap">
+        <div class="head reveal">
+          <h2>Родная подпись<br>против переподписи.</h2>
+          <p>Два принципиально разных способа поставить приложение, которого нет в App Store.</p>
+        </div>
+        <div class="tablewrap reveal">
+          <table>
+            <thead>
+              <tr><th></th><th class="us">Возврат</th><th>Установка IPA с переподписью<br><span style="font-weight:400">(AltStore, Sideloadly и подобные)</span></th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Откуда берётся IPA</td><td class="us">Из истории покупок вашего Apple ID, напрямую с серверов Apple</td><td>Из сторонних источников</td></tr>
+              <tr><td>Подпись</td><td class="us yes">Оригинальная, от Apple</td><td>Ваша, сертификатом разработчика</td></tr>
+              <tr><td>Срок работы</td><td class="us yes">Без ограничений по времени</td><td>С бесплатным аккаунтом разработчика — 7 дней, затем нужна переподпись</td></tr>
+              <tr><td>Джейлбрейк</td><td class="us yes">Не нужен</td><td>Не нужен</td></tr>
+              <tr><td>Выбор версии</td><td class="us yes">Из версий, которые хранит Apple</td><td>Вручную, по найденным файлам</td></tr>
+              <tr><td>Что можно поставить</td><td class="us">Только то, что уже скачивалось с вашего Apple ID</td><td>Любой доступный IPA</td></tr>
+              <tr><td>Стоимость и код</td><td class="us yes">Бесплатно, открытый исходный код</td><td>Зависит от программы</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">Сравнение описывает общие подходы, а не конкретные версии программ.</p>
+      </div>
+    </section>
+
+    <!-- DOWNLOAD -->
+    <section id="download">
+      <div class="wrap">
+        <div class="head reveal">
+          <h2>Скачать «Возврат».</h2>
+          <p>Готовые сборки. Python ставить не нужно: всё уже внутри.</p>
+        </div>
+        <div class="dl-grid">
+          <div class="dl reveal" data-os="windows">
+            <span class="badge" hidden>Для вашей системы</span>
+            <div class="os">Windows</div>
+            <h3>Windows 10 / 11</h3>
+            <p class="req">64 бит. Нужен драйвер Apple: приложение <a href="https://apps.microsoft.com/detail/9np83lwlpz9k" target="_blank" rel="noopener noreferrer">Apple Devices</a> или iTunes.</p>
+            <div class="btns"><a class="btn" href="https://github.com/n0hard/back-to-iphone/releases/latest/download/VozvratSetup.exe">Скачать VozvratSetup.exe</a></div>
+          </div>
+          <div class="dl reveal" data-os="mac">
+            <span class="badge" hidden>Для вашей системы</span>
+            <div class="os">macOS</div>
+            <h3>macOS 12 и новее</h3>
+            <p class="req">Драйвер встроен в систему. Выберите сборку под ваш Mac.</p>
+            <div class="btns">
+              <a class="btn" href="https://github.com/n0hard/back-to-iphone/releases/latest/download/Vozvrat-macOS-arm64.dmg">Apple Silicon (M1–M4)</a>
+              <a class="btn ghost" href="https://github.com/n0hard/back-to-iphone/releases/latest/download/Vozvrat-macOS-x64.dmg">Intel</a>
+            </div>
+          </div>
+          <div class="dl reveal" data-os="linux">
+            <span class="badge" hidden>Для вашей системы</span>
+            <div class="os">Linux</div>
+            <h3>Linux x86_64</h3>
+            <p class="req">Ubuntu 22.04+ и аналоги. Нужна служба <code>usbmuxd</code>.</p>
+            <div class="btns">
+              <a class="btn" href="https://github.com/n0hard/back-to-iphone/releases/latest/download/Vozvrat-Linux-x64.AppImage">Скачать AppImage</a>
+              <a class="btn ghost" href="https://github.com/n0hard/back-to-iphone/releases/latest/download/Vozvrat-Linux-x64.tar.gz">Скачать tar.gz</a>
+            </div>
+          </div>
+        </div>
+        <p class="note">Если ссылка не открывает файл, возьмите нужную сборку на странице <a href="https://github.com/n0hard/back-to-iphone/releases" target="_blank" rel="noopener noreferrer">Releases</a>.</p>
+
+        <div class="install reveal">
+          <h3>Первый запуск</h3>
+          <div class="tabs" role="tablist" aria-label="Инструкция по системам" data-tabs="install">
+            <button class="tab" role="tab" id="i-win" aria-controls="ip-win" aria-selected="true">Windows</button>
+            <button class="tab" role="tab" id="i-mac" aria-controls="ip-mac" aria-selected="false" tabindex="-1">macOS</button>
+            <button class="tab" role="tab" id="i-linux" aria-controls="ip-linux" aria-selected="false" tabindex="-1">Linux</button>
+          </div>
+          <div class="panel" id="ip-win" role="tabpanel" aria-labelledby="i-win">
+            <div class="steps-list"><ol>
+              <li>Установите <a href="https://apps.microsoft.com/detail/9np83lwlpz9k" target="_blank" rel="noopener noreferrer">Apple Devices</a> из Microsoft Store или iTunes.</li>
+              <li>Запустите <code>VozvratSetup.exe</code>. Права администратора не нужны.</li>
+              <li>Если SmartScreen покажет «Неизвестный издатель», нажмите «Подробнее», затем «Выполнить в любом случае»: инсталлятор не подписан цифровой подписью.</li>
+            </ol></div>
+          </div>
+          <div class="panel" id="ip-mac" role="tabpanel" aria-labelledby="i-mac" hidden>
+            <div class="steps-list"><ol>
+              <li>Откройте <code>.dmg</code> и перетащите «Возврат» в «Программы».</li>
+              <li>Программа не подписана сертификатом Apple, поэтому macOS заблокирует первый запуск. Откройте «Системные настройки» → «Конфиденциальность и безопасность» и нажмите «Всё равно открыть» — или выполните в Терминале:
+                <div class="code" data-copy-src><span>xattr -cr /Applications/Vozvrat.app</span><button class="copy" type="button">Копировать</button></div></li>
+              <li>При первом подключении iPhone нажмите на телефоне «Доверять этому компьютеру».</li>
+            </ol></div>
+          </div>
+          <div class="panel" id="ip-linux" role="tabpanel" aria-labelledby="i-linux" hidden>
+            <div class="steps-list"><ol>
+              <li>Установите <code>usbmuxd</code>. Для Ubuntu и Debian:
+                <div class="code" data-copy-src><span>sudo apt install usbmuxd</span><button class="copy" type="button">Копировать</button></div>В Fedora: <code>sudo dnf install usbmuxd</code>, в Arch: <code>sudo pacman -S usbmuxd</code>.</li>
+              <li>Сделайте AppImage исполняемым:
+                <div class="code" data-copy-src><span>chmod +x Vozvrat-Linux-x64.AppImage</span><button class="copy" type="button">Копировать</button></div></li>
+              <li>Запустите:
+                <div class="code" data-copy-src><span>./Vozvrat-Linux-x64.AppImage</span><button class="copy" type="button">Копировать</button></div></li>
+            </ol>
+            <p class="small-note">Если AppImage не запускается из-за FUSE, распакуйте <code>tar.gz</code> и запустите <code>Vozvrat/Vozvrat</code>. На Linux интерфейс открывается во вкладке браузера.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="alt">
+      <div class="wrap">
+        <div class="head reveal"><h2>Вопросы и ответы.</h2></div>
+        <div class="faq reveal">
+          <details><summary>Нужен ли джейлбрейк?</summary><div><p>Нет. Приложение скачивается с оригинальной подписью Apple и ставится по USB. Оно привязано к вашему Apple ID и не «протухает» через 7 дней.</p></div></details>
+          <details><summary>Пишет «Этого приложения нет в истории покупок»</summary><div><p>Это значит, что приложение не скачивалось с этого Apple ID. Попробуйте другой вариант в «Все варианты…» или войдите под другим аккаунтом.</p></div></details>
+          <details><summary>Пишет «Нужна iOS … или новее»</summary><div><p>Откройте «Версии» и поставьте более старую версию приложения, которая поддерживает iOS вашего iPhone.</p></div></details>
+          <details><summary>iPhone не найден или «Не найден драйвер Apple»</summary><div><p>Windows: установите Apple Devices или iTunes. Linux: установите и запустите <code>usbmuxd</code>. Затем переподключите кабель, разблокируйте iPhone и нажмите «Доверять этому компьютеру».</p></div></details>
+          <details><summary>Безопасно ли вводить пароль Apple ID?</summary><div><p>Программа работает локально на вашем компьютере (127.0.0.1). Пароль передаётся только на серверы Apple через <code>ipatool</code>, двухфакторная аутентификация поддерживается. Исходный код открыт на GitHub.</p></div></details>
+          <details><summary>Не приходят push-уведомления</summary><div><p>Для части удалённых приложений Apple отключила пуши. Это ограничение Apple, а не программы.</p></div></details>
+          <details><summary>Поиск не находит приложение</summary><div><p>Поиск идёт только по каталогу программы (441 приложение) и понимает транслит, разговорные названия и небольшие опечатки: «макс» и «max», «сбол», «тинькофф». Если приложения в каталоге нет, введите его App Store ID или ссылку <code>apps.apple.com/…/id123456789</code>.</p></div></details>
+          <details><summary>Обновляются ли такие приложения через App Store?</summary><div><p>Нет, удалённые приложения через App Store не обновляются. Чтобы поставить более свежую версию, если она есть в истории покупок, установите приложение ещё раз.</p></div></details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div>
+        <p>Проект для личного использования. Он не связан с Apple и не распространяет чужие приложения: всё скачивается с серверов Apple под вашим Apple ID и только из вашей истории покупок. Используйте на свой страх и риск и соблюдайте условия Apple.</p>
+        <p>Используются <a href="https://github.com/majd/ipatool" target="_blank" rel="noopener noreferrer">ipatool</a> (MIT) и <a href="https://github.com/doronz88/pymobiledevice3" target="_blank" rel="noopener noreferrer">pymobiledevice3</a> (GPL-3.0). &copy; 2026 n0hard.</p>
+      </div>
+      <div class="foot-links">
+        <a href="https://github.com/n0hard/back-to-iphone" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/n0hard/back-to-iphone/releases" target="_blank" rel="noopener noreferrer">Releases</a>
+        <a href="blog/index.html">Блог</a>
+        <a href="#top">Наверх</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  (function () {
+    var $ = function (s, r) { return (r || document).querySelector(s); };
+    var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+    /* Mobile menu */
+    var burger = $('#burger'), menu = $('#menu');
+    function setMenu(open) { menu.classList.toggle('open', open); burger.setAttribute('aria-expanded', String(open)); }
+    burger.addEventListener('click', function () { setMenu(!menu.classList.contains('open')); });
+    $$('a', menu).forEach(function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setMenu(false); });
+
+    /* Tabs (click + arrow keys) */
+    $$('[data-tabs]').forEach(function (list) {
+      var tabs = $$('[role=tab]', list);
+      function select(tab, focus) {
+        tabs.forEach(function (t) {
+          var on = t === tab;
+          t.setAttribute('aria-selected', String(on));
+          t.tabIndex = on ? 0 : -1;
+          var p = document.getElementById(t.getAttribute('aria-controls'));
+          if (p) p.hidden = !on;
+        });
+        if (focus) tab.focus();
+      }
+      tabs.forEach(function (t, i) {
+        t.addEventListener('click', function () { select(t); });
+        t.addEventListener('keydown', function (e) {
+          var n = null;
+          if (e.key === 'ArrowRight') n = tabs[(i + 1) % tabs.length];
+          else if (e.key === 'ArrowLeft') n = tabs[(i - 1 + tabs.length) % tabs.length];
+          else if (e.key === 'Home') n = tabs[0];
+          else if (e.key === 'End') n = tabs[tabs.length - 1];
+          if (n) { e.preventDefault(); select(n, true); }
+        });
+      });
+    });
+
+    /* Copy buttons */
+    $$('.code').forEach(function (box) {
+      var btn = $('.copy', box), txt = $('span', box).textContent.trim();
+      btn.addEventListener('click', function () {
+        function ok() { btn.textContent = 'Скопировано'; btn.classList.add('done'); setTimeout(function () { btn.textContent = 'Копировать'; btn.classList.remove('done'); }, 1600); }
+        function fallback() {
+          var ta = document.createElement('textarea'); ta.value = txt; ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
+          try { document.execCommand('copy'); ok(); } catch (e) { btn.textContent = 'Ошибка'; }
+          document.body.removeChild(ta);
+        }
+        if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).then(ok, fallback); else fallback();
+      });
+    });
+
+    /* Detect OS: highlight matching download card and open its instructions */
+    var ua = (navigator.userAgent || '') + ' ' + (navigator.platform || '');
+    var os = /iPhone|iPad|iPod|Android/i.test(ua) ? null : /Win/i.test(ua) ? 'windows' : /Mac/i.test(ua) ? 'mac' : /Linux|X11/i.test(ua) ? 'linux' : null;
+    if (os) {
+      var card = $('.dl[data-os="' + os + '"]');
+      if (card) { card.classList.add('rec'); $('.badge', card).hidden = false; }
+      var tabId = { windows: 'i-win', mac: 'i-mac', linux: 'i-linux' }[os];
+      var t = document.getElementById(tabId); if (t) t.click();
+    }
+
+    /* Active nav link on scroll */
+    var links = $$('.menu a[href^="#"]');
+    var secs = links.map(function (a) { return $(a.getAttribute('href')); });
+    function onScroll() {
+      var y = window.scrollY + 120, cur = -1;
+      secs.forEach(function (s, i) { if (s && s.offsetTop <= y) cur = i; });
+      links.forEach(function (a, i) { a.classList.toggle('active', i === cur); });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+
+    /* Reveal on scroll */
+    var els = $$('.reveal');
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (en) {
+        en.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+      }, { threshold: 0.12 });
+      els.forEach(function (el) { io.observe(el); });
+    } else { els.forEach(function (el) { el.classList.add('in'); }); }
+  })();
+  </script>
+</body>
+</html>
