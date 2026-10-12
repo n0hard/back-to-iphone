@@ -20,6 +20,29 @@ import webbrowser
 import server
 
 IDLE_EXIT = 300  # сек; фоновые вкладки браузер будит не чаще раза в минуту, поэтому запас большой
+WINDOW_ATTEMPTS = 3  # сколько раз пробовать открыть окно, прежде чем уйти в браузер
+WINDOW_RETRY_DELAY = 3  # сек
+
+
+def relaunch_for_window(attempt):
+    """Запускает программу заново, чтобы ещё раз попробовать открыть окно.
+
+    Сразу после установки обновления .NET иногда не может загрузить свежий Python.Runtime.dll
+    («Failed to resolve Python.Runtime.Loader.Initialize»), а через несколько секунд тот же файл
+    загружается: видимо, его ещё держит антивирус. Повторить можно только в новом процессе —
+    после неудачи pythonnet внутри процесса остаётся в нерабочем состоянии.
+    """
+    import subprocess
+
+    env = dict(os.environ)
+    env.pop("PYTHONNET_RUNTIME", None)  # pywebview выставляет её после неудачи — новому процессу она не нужна
+    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"  # новый процесс — самостоятельная программа, а не дочерний
+    env["VOZVRAT_WINDOW_ATTEMPT"] = str(attempt)
+    time.sleep(WINDOW_RETRY_DELAY)
+    flags = (subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP) if sys.platform == "win32" else 0
+    subprocess.Popen([sys.executable], env=env, creationflags=flags, close_fds=True,
+                     start_new_session=sys.platform != "win32")
+    os._exit(0)
 
 
 def run():
@@ -32,8 +55,11 @@ def run():
             webview.start()
             return
         except Exception:
-            # нет WebView — работаем через браузер, а причину показываем на странице: без неё такой сбой
-            # не разобрать (логов программа не пишет)
+            attempt = int(os.environ.get("VOZVRAT_WINDOW_ATTEMPT") or 1)
+            if getattr(sys, "frozen", False) and attempt < WINDOW_ATTEMPTS:
+                relaunch_for_window(attempt + 1)
+            # окно так и не открылось — работаем через браузер, а причину показываем на странице:
+            # без неё такой сбой не разобрать (логов программа не пишет)
             import traceback
             server.window_error = traceback.format_exc()[-3000:]
     webbrowser.open(url)
