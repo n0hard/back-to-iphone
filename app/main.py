@@ -1,8 +1,9 @@
 """Точка входа собранной программы: окно приложения поверх локального сервера.
 
-Windows и macOS — своё окно (pywebview: WebView2 / WKWebView). Linux — вкладка браузера: встроить
-WebKitGTK или Qt в переносимую сборку слишком тяжело, поэтому программа сама завершается, когда
-страница перестаёт выходить на связь (вкладку закрыли).
+Windows и macOS — только своё окно (pywebview: WebView2 / WKWebView): если открыть его не удалось,
+программа пробует ещё раз, а потом показывает системное сообщение с причиной — во вкладку браузера
+она не уходит. Linux — вкладка браузера: встроить WebKitGTK или Qt в переносимую сборку слишком
+тяжело, поэтому программа сама завершается, когда страница перестаёт выходить на связь (вкладку закрыли).
 """
 import sys
 
@@ -20,7 +21,7 @@ import webbrowser
 import server
 
 IDLE_EXIT = 300  # сек; фоновые вкладки браузер будит не чаще раза в минуту, поэтому запас большой
-WINDOW_ATTEMPTS = 3  # сколько раз пробовать открыть окно, прежде чем уйти в браузер
+WINDOW_ATTEMPTS = 3  # сколько раз пробовать открыть окно, прежде чем сообщить об ошибке
 WINDOW_RETRY_DELAY = 3  # сек
 
 
@@ -45,27 +46,51 @@ def relaunch_for_window(attempt):
     os._exit(0)
 
 
-def run():
+def show_error(text):
+    """Системное окно с ошибкой — когда своё окно программы открыть не удалось."""
+    try:
+        if sys.platform == "win32":
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None, text, "Возврат", 0x10)  # MB_ICONERROR
+        elif sys.platform == "darwin":
+            import subprocess
+            script = 'display alert "Возврат" message (system attribute "VOZVRAT_ERROR") as critical'
+            subprocess.run(["osascript", "-e", script], env={**os.environ, "VOZVRAT_ERROR": text}, timeout=600)
+    except Exception:
+        pass
+    print(text, file=sys.stderr)
+
+
+def run_in_browser():
+    """Linux: своего окна нет — интерфейс открывается во вкладке браузера."""
     srv, url = server.create(0)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    if sys.platform != "linux" and os.environ.get("VOZVRAT_BROWSER") != "1":
-        try:
-            import webview
-            webview.create_window("Возврат", url, width=960, height=900, min_size=(420, 600))
-            webview.start()
-            return
-        except Exception:
-            attempt = int(os.environ.get("VOZVRAT_WINDOW_ATTEMPT") or 1)
-            if getattr(sys, "frozen", False) and attempt < WINDOW_ATTEMPTS:
-                relaunch_for_window(attempt + 1)
-            # окно так и не открылось — работаем через браузер, а причину показываем на странице:
-            # без неё такой сбой не разобрать (логов программа не пишет)
-            import traceback
-            server.window_error = traceback.format_exc()[-3000:]
     webbrowser.open(url)
     print(f"Возврат открыт в браузере: {url}\nПрограмма завершится сама через несколько минут после закрытия вкладки.")
     while server.idle_seconds() < IDLE_EXIT:
         time.sleep(5)
+
+
+def run():
+    if sys.platform.startswith("linux"):
+        return run_in_browser()
+    # Windows и macOS — только своё окно, без запасного варианта во вкладке браузера
+    srv, url = server.create(0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        import webview
+        webview.create_window("Возврат", url, width=960, height=900, min_size=(420, 600))
+        webview.start()
+        return
+    except Exception as e:
+        attempt = int(os.environ.get("VOZVRAT_WINDOW_ATTEMPT") or 1)
+        if getattr(sys, "frozen", False) and attempt < WINDOW_ATTEMPTS:
+            relaunch_for_window(attempt + 1)
+        hint = ("Установите или обновите Microsoft Edge WebView2 Runtime "
+                "(https://go.microsoft.com/fwlink/p/?LinkId=2124703) и запустите программу снова."
+                if sys.platform == "win32" else "Перезапустите программу. Если не поможет — создайте issue на GitHub.")
+        show_error(f"Не удалось открыть окно программы.\n\n{hint}\n\nПричина: {type(e).__name__}: {e}")
+        os._exit(1)
 
 
 def smoke():

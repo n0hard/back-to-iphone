@@ -107,11 +107,6 @@
 <body>
 <div class="wrap">
   <header><div class="logo">↺</div><h1>Возврат</h1><span class="ver-tag" id="verTag"></span></header>
-  <div class="note hidden" id="windowError" style="margin-bottom:16px">
-    Окно программы не открылось, поэтому «Возврат» работает во вкладке браузера — пользоваться можно как обычно.
-    <details style="margin-top:6px"><summary style="font-weight:500">Подробности для отчёта об ошибке</summary>
-      <pre id="windowErrorText" style="white-space:pre-wrap;font-size:11px;margin:6px 0 0;max-height:200px;overflow:auto"></pre></details>
-  </div>
   <p class="sub">Возвращает на iPhone приложения, удалённые из App Store: скачивает оригинальный IPA из истории покупок вашего Apple ID и ставит его по USB.</p>
 
   <!-- 1. Apple ID -->
@@ -673,7 +668,6 @@ async function poll() {
 (async () => {
   const state = await api("/api/state");
   platform = state.platform; $("verTag").textContent = "версия " + state.version;
-  if (state.windowError) { $("windowErrorText").textContent = state.windowError; $("windowError").classList.remove("hidden"); }
   showUpd(state.update); watchUpdate();
   account = state.account; renderAccount();
   const driver = {

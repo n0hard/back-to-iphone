@@ -28,7 +28,6 @@ INSTALLED = store.DATA / "installed.json"  # что и какой версии �
 TOKEN = secrets.token_urlsafe(24)  # защищает API от запросов со сторонних сайтов
 
 account = None  # {"email", "name"} — кэш `ipatool auth info`
-window_error = None  # почему не открылось окно программы (WebView2), если она ушла в браузер
 jobs = {}  # id -> задача; порядок вставки = порядок добавления
 queue = collections.deque()  # id задач, ждущих установки
 lock = threading.Lock()
@@ -327,7 +326,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if url.path == "/api/state":
                 self.send_json({"account": account, "platform": sys.platform, "version": VERSION,
-                                "update": updater.state(), "windowError": window_error})
+                                "update": updater.state()})
             elif url.path == "/api/update":
                 self.send_json(updater.state())
             elif url.path == "/api/devices":

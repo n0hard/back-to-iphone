@@ -204,9 +204,12 @@ def _spawn_detached(cmd):
 
 
 def _install_windows(path):
-    # Инсталлятор помнит папку и ярлыки прошлой установки; /CLOSEAPPLICATIONS — на случай, если
-    # программа ещё не успела закрыться. После тихой установки он сам запускает новую версию.
-    _spawn_detached([str(path), "/SILENT", "/SP-", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS"])
+    # Инсталлятор помнит папку и ярлыки прошлой установки. /CLOSEAPPLICATIONS — на случай, если
+    # программа ещё не успела закрыться; /FORCECLOSEAPPLICATIONS — закрыть её принудительно, если
+    # вежливо не вышло: иначе тихий инсталлятор молча завершается, ничего не поставив.
+    # После тихой установки он сам запускает новую версию.
+    _spawn_detached([str(path), "/SILENT", "/SP-", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
+                     "/FORCECLOSEAPPLICATIONS"])
 
 
 def _install_macos(dmg):
