@@ -139,6 +139,16 @@
     <button class="ghost" id="refreshDevs">Обновить список</button>
   </section>
 
+  <!-- Обновления приложений на iPhone -->
+  <section class="card">
+    <h2><span class="num">↻</span>Обновления приложений</h2>
+    <p class="muted">Удалённые из App Store приложения не обновляются сами. «Возврат» сравнит версии на iPhone
+      с последними версиями в истории покупок вашего Apple ID.</p>
+    <button class="ghost" id="appUpdBtn">Проверить обновления</button>
+    <div class="err" id="appUpdErr"></div>
+    <div id="appUpdList" class="upd-list"></div>
+  </section>
+
   <!-- 3. Приложение -->
   <section class="card">
     <h2><span class="num" id="n3">3</span>Приложение</h2>
@@ -162,16 +172,6 @@
       <label class="chk"><input type="checkbox" id="purchase"> Если приложения нет в покупках — «купить» его (только бесплатные, доступные в App Store)</label>
       <label class="chk"><input type="checkbox" id="keepIpa"> Сохранять скачанный IPA на компьютере</label>
     </div>
-  </section>
-
-  <!-- Обновления приложений на iPhone -->
-  <section class="card">
-    <h2><span class="num">↻</span>Обновления приложений</h2>
-    <p class="muted">Удалённые из App Store приложения не обновляются сами. «Возврат» сравнит версии на iPhone
-      с последними версиями в истории покупок вашего Apple ID.</p>
-    <button class="ghost" id="appUpdBtn">Проверить обновления</button>
-    <div class="err" id="appUpdErr"></div>
-    <div id="appUpdList" class="upd-list"></div>
   </section>
 
   <section class="card">
