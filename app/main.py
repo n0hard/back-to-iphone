@@ -32,7 +32,10 @@ def run():
             webview.start()
             return
         except Exception:
-            pass  # нет WebView — работаем через браузер
+            # нет WebView — работаем через браузер, а причину показываем на странице: без неё такой сбой
+            # не разобрать (логов программа не пишет)
+            import traceback
+            server.window_error = traceback.format_exc()[-3000:]
     webbrowser.open(url)
     print(f"Возврат открыт в браузере: {url}\nПрограмма завершится сама через несколько минут после закрытия вкладки.")
     while server.idle_seconds() < IDLE_EXIT:
