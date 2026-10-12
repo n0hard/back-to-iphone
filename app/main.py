@@ -74,7 +74,11 @@ def run_in_browser():
 def run():
     if sys.platform.startswith("linux"):
         return run_in_browser()
-    # Windows и macOS — только своё окно, без запасного варианта во вкладке браузера
+    # Windows и macOS — только своё окно, без запасного варианта во вкладке браузера.
+    # Номер попытки забираем из окружения сразу: иначе его унаследуют дочерние процессы, в том числе
+    # инсталлятор обновления, и новая версия начала бы не с первой попытки
+    attempt = int(os.environ.pop("VOZVRAT_WINDOW_ATTEMPT", None) or 1)
+    os.environ.pop("PYINSTALLER_RESET_ENVIRONMENT", None)
     srv, url = server.create(0)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
@@ -83,7 +87,6 @@ def run():
         webview.start()
         return
     except Exception as e:
-        attempt = int(os.environ.get("VOZVRAT_WINDOW_ATTEMPT") or 1)
         if getattr(sys, "frozen", False) and attempt < WINDOW_ATTEMPTS:
             relaunch_for_window(attempt + 1)
         hint = ("Установите или обновите Microsoft Edge WebView2 Runtime "

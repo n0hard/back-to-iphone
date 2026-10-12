@@ -194,12 +194,21 @@ def _download(latest):
     return path
 
 
+def _clean_env():
+    """Окружение для новой версии: без служебных переменных этого процесса, чтобы она стартовала
+    как самостоятельная программа, а не как дочерний процесс старой."""
+    env = {k: v for k, v in os.environ.items()
+           if not k.startswith("_PYI_") and k not in ("PYTHONNET_RUNTIME", "VOZVRAT_WINDOW_ATTEMPT")}
+    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    return env
+
+
 def _spawn_detached(cmd):
     if sys.platform == "win32":
         flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-        subprocess.Popen(cmd, creationflags=flags, close_fds=True)
+        subprocess.Popen(cmd, creationflags=flags, close_fds=True, env=_clean_env())
     else:
-        subprocess.Popen(cmd, start_new_session=True, close_fds=True,
+        subprocess.Popen(cmd, start_new_session=True, close_fds=True, env=_clean_env(),
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
