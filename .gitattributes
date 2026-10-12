@@ -5,3 +5,8 @@
 *.iss text eol=crlf
 *.png binary
 *.ico binary
+
+packaging/linux/AppRun text eol=lf
+*.icns binary
+
+*.sh text eol=lf

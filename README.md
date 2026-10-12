@@ -1,6 +1,6 @@
 # back-to-iphone (Возврат)
 
-Бесплатная программа для Windows, которая возвращает на iPhone приложения, удалённые из российского App Store:
+Бесплатная программа для Windows, macOS и Linux, которая возвращает на iPhone приложения, удалённые из российского App Store:
 банки (Сбер, ВТБ, Альфа, Т-Банк и другие), VK, MAX, Авито, Почту Mail.ru, игры Supercell.
 
 Она скачивает **оригинальный IPA с подписью Apple** из истории покупок вашего Apple ID и ставит его на iPhone по USB.
@@ -37,39 +37,74 @@
 
 ## Установка
 
-### Требования
+Готовые сборки лежат на странице [Releases](https://github.com/n0hard/back-to-iphone/releases).
+Python ставить не нужно: внутри уже есть Python, `ipatool` и `pymobiledevice3`.
 
-- Windows 10/11, 64 бит
-- Драйвер Apple для работы с iPhone по USB: приложение
-  [Apple Devices](https://apps.microsoft.com/detail/9np83lwlpz9k) из Microsoft Store или iTunes
-- Кабель для iPhone
+| Система | Файл |
+|---|---|
+| Windows 10/11, 64 бит | `VozvratSetup.exe` |
+| macOS 12+ на Apple Silicon (M1–M4) | `Vozvrat-macOS-arm64.dmg` |
+| macOS 12+ на Intel | `Vozvrat-macOS-x64.dmg` |
+| Linux x86_64 (Ubuntu 22.04+ и аналоги) | `Vozvrat-Linux-x64.AppImage` или `Vozvrat-Linux-x64.tar.gz` |
 
-### Через инсталлятор (рекомендуется)
+Для всех систем нужен кабель для iPhone.
 
-1. Скачайте `VozvratSetup.exe` со страницы [Releases](https://github.com/n0hard/back-to-iphone/releases)
-   или соберите его сами (см. [Сборка](#сборка)).
-2. Запустите инсталлятор. Права администратора не нужны: программа ставится в
+### Windows
+
+1. Установите драйвер Apple для работы с iPhone по USB: приложение
+   [Apple Devices](https://apps.microsoft.com/detail/9np83lwlpz9k) из Microsoft Store или iTunes.
+2. Запустите `VozvratSetup.exe`. Права администратора не нужны: программа ставится в
    `%LOCALAPPDATA%\Programs\Vozvrat` и создаёт ярлыки в меню «Пуск» и, по желанию, на рабочем столе.
-3. Если драйвера Apple нет, инсталлятор предупредит и в конце предложит открыть Microsoft Store с Apple Devices.
+   Если драйвера Apple нет, инсталлятор предупредит и в конце предложит открыть Microsoft Store.
 
-Инсталлятор не подписан цифровой подписью, поэтому Windows SmartScreen может показать «Неизвестный издатель».
+Инсталлятор не подписан цифровой подписью, поэтому SmartScreen может показать «Неизвестный издатель».
 Нажмите «Подробнее», затем «Выполнить в любом случае».
 
-Python для работы не нужен: внутри уже есть Python, `ipatool` и `pymobiledevice3`.
+### macOS
+
+1. Откройте `.dmg` и перетащите «Возврат» в «Программы». Драйвер ставить не нужно: он встроен в macOS.
+2. Программа не подписана сертификатом Apple, поэтому при первом запуске macOS её заблокирует.
+   Разрешите запуск одним из способов:
+   - откройте «Системные настройки» → «Конфиденциальность и безопасность» и нажмите «Всё равно открыть»;
+   - или выполните в Терминале:
+     ```bash
+     xattr -cr /Applications/Vozvrat.app
+     ```
+3. При первом подключении iPhone нажмите на телефоне «Доверять этому компьютеру».
+
+### Linux
+
+1. Установите службу `usbmuxd`, через неё система видит iPhone:
+   ```bash
+   sudo apt install usbmuxd
+   ```
+   В Fedora — `sudo dnf install usbmuxd`, в Arch — `sudo pacman -S usbmuxd`.
+2. Сделайте AppImage исполняемым и запустите его:
+   ```bash
+   chmod +x Vozvrat-Linux-x64.AppImage
+   ```
+   ```bash
+   ./Vozvrat-Linux-x64.AppImage
+   ```
+   Если AppImage не запускается из-за FUSE, используйте архив: распакуйте `Vozvrat-Linux-x64.tar.gz`
+   и запустите `Vozvrat/Vozvrat`.
+
+На Linux интерфейс открывается во вкладке браузера. Программа сама завершается через несколько минут
+после закрытия вкладки, если ничего не устанавливается.
 
 ### Из исходников
 
-1. Установите [Python 3.11+](https://www.python.org/downloads/) и отметьте «Add to PATH».
-2. Установите драйвер Apple (Apple Devices или iTunes).
-3. Склонируйте репозиторий и запустите `start.bat`:
-   ```bash
-   git clone https://github.com/n0hard/back-to-iphone.git
-   ```
-   При первом запуске он установит зависимости из `requirements.txt` и скачает `ipatool` из
-   [официального релиза](https://github.com/majd/ipatool/releases) со сверкой SHA-256.
-   Затем интерфейс откроется в браузере на `http://127.0.0.1:8765`.
+Нужен [Python 3.11+](https://www.python.org/downloads/) (на Windows отметьте «Add to PATH») и драйвер
+из инструкции для вашей системы. Склонируйте репозиторий:
 
-На macOS: выполните `chmod +x start.command` и откройте файл двойным кликом.
+```bash
+git clone https://github.com/n0hard/back-to-iphone.git
+```
+
+Затем запустите `start.bat` (Windows), `start.command` (macOS) или `start.sh` (Linux). При первом запуске
+скрипт установит зависимости из `requirements.txt` и скачает `ipatool` из
+[официального релиза](https://github.com/majd/ipatool/releases) со сверкой SHA-256.
+Интерфейс откроется в браузере на `http://127.0.0.1:8765`.
 
 ## Как пользоваться
 
@@ -96,7 +131,8 @@ Python для работы не нужен: внутри уже есть Python,
 | «Этого приложения нет в истории покупок» | Приложение не скачивалось с этого Apple ID. Попробуйте другой вариант в «Все варианты…» или другой аккаунт |
 | «Нужна iOS … или новее» | Откройте «Версии» и поставьте более старую версию приложения |
 | Не входит в Apple ID после использования IPA_Downloader и подобных программ | Начиная с 1.1.0 «Возврат» хранит сессию отдельно. Войдите в него ещё раз |
-| «iPhone не найден» / «Не найден драйвер Apple» | Установите Apple Devices или iTunes, переподключите кабель, разблокируйте iPhone |
+| «iPhone не найден» / «Не найден драйвер Apple» | Windows: установите Apple Devices или iTunes. Linux: установите и запустите `usbmuxd`. Затем переподключите кабель и разблокируйте iPhone |
+| macOS: «Не удаётся открыть, так как разработчик не подтверждён» | См. раздел [macOS](#macos): «Всё равно открыть» или `xattr -cr` |
 | «Нажмите „Доверять этому компьютеру“» | Разблокируйте iPhone и подтвердите доверие во всплывающем окне |
 | Не приходят push-уведомления | Для части удалённых приложений Apple отключила пуши. Это ограничение Apple |
 | Поиск по названию выдаёт ошибку | У поиска Apple есть лимит запросов. Подождите минуту или введите ID |
@@ -107,13 +143,13 @@ Python для работы не нужен: внутри уже есть Python,
 ## Как это устроено
 
 ```
-Интерфейс (WebView2) ─► локальный сервер 127.0.0.1 ─┬─► ipatool ─────────► App Store (вход, IPA)
-                                                    └─► pymobiledevice3 ─► iPhone по USB
+Интерфейс (окно / браузер) ─► локальный сервер 127.0.0.1 ─┬─► ipatool ─────────► App Store (вход, IPA)
+                                                          └─► pymobiledevice3 ─► iPhone по USB
 ```
 
 | Файл | Назначение |
 |---|---|
-| `app/main.py` | точка входа exe: окно WebView2 и режим `--pmd3` для pymobiledevice3 |
+| `app/main.py` | точка входа: окно (WebView2 на Windows, WKWebView на macOS) или браузер на Linux, режим `--pmd3` для pymobiledevice3 и самопроверка `--smoke` |
 | `app/server.py` | локальный HTTP-сервер с API, защищён случайным токеном и проверкой Host |
 | `app/store.py` | обёртка над `ipatool`: вход, 2FA, скачивание IPA с `sinf` и `iTunesMetadata` |
 | `app/device.py` | список устройств и установка через `pymobiledevice3` |
@@ -121,17 +157,21 @@ Python для работы не нужен: внутри уже есть Python,
 | `app/ui/icons/` | иконки приложений каталога |
 | `app/catalog.json` | каталог: ID, название, категория, иконка |
 | `app/setup_tools.py` | загрузка `ipatool` с проверкой контрольной суммы |
-| `packaging/installer.iss` | скрипт инсталлятора Inno Setup |
-| `build.bat` | сборка exe и инсталлятора |
+| `packaging/build.py` | сборка и упаковка для текущей ОС |
+| `packaging/installer.iss` | скрипт инсталлятора Inno Setup (Windows) |
+| `packaging/linux/` | файлы AppImage |
+| `.github/workflows/build.yml` | сборка для всех ОС в GitHub Actions |
 
 **Зачем нужен `ipatool`.** Apple требует для входа в App Store подпись SAP (FairPlay). Её умеет вычислять
 [ipatool](https://github.com/majd/ipatool): он эмулирует код Apple. Своя реализация протокола без неё
 получает от Apple пустой ответ.
 
-**Где хранятся данные.** Всё лежит в `%APPDATA%\vozvrat`: зашифрованное хранилище `ipatool` с сессией Apple ID
-(`ipatool-home`), ключ от него и временные IPA. Общий `~/.ipatool` не используется, чтобы не мешать другим
+**Где хранятся данные.** В папке программы: `%APPDATA%\vozvrat` на Windows,
+`~/Library/Application Support/Vozvrat` на macOS, `~/.local/share/vozvrat` на Linux. Там лежат ключ от хранилища
+`ipatool` и временные IPA. Сессия Apple ID на Windows и Linux хранится там же, в зашифрованном `ipatool-home`,
+а на macOS — в связке ключей. Общий `~/.ipatool` на Windows и Linux не используется, чтобы не мешать другим
 программам на ipatool, например IPA_Downloader. Пароль передаётся только на серверы Apple.
-При удалении программы инсталлятор спрашивает, стереть ли эти данные.
+На Windows инсталлятор при удалении программы спрашивает, стереть ли эти данные.
 
 **Каталог.** ID приложений взяты из архивных страниц apps.apple.com и из списка
 [IPA_Downloader](https://github.com/kda2495/IPA_Downloader) (MIT). Отсутствие в российском App Store проверено
@@ -145,14 +185,31 @@ Python для работы не нужен: внутри уже есть Python,
 
 ## Сборка
 
-Нужны Python 3.11+ и [Inno Setup 6](https://jrsoftware.org/isdl.php). Запустите `build.bat` в корне проекта:
+Собрать программу можно только на той системе, для которой она предназначена: PyInstaller не умеет
+собирать под другую ОС. Нужен Python 3.11+:
 
-1. ставит зависимости, PyInstaller и pywebview;
-2. скачивает `ipatool` в `bin/`, если его там нет;
-3. собирает `build\dist\Vozvrat\Vozvrat.exe` через PyInstaller;
-4. собирает инсталлятор `dist\VozvratSetup.exe`.
+```bash
+python -m pip install --only-binary cryptography -r requirements.txt pyinstaller
+```
 
-Перед сборкой закройте запущенный «Возврат»: иначе Windows не даст перезаписать его файлы.
+```bash
+python packaging/build.py
+```
+
+Скрипт скачивает `ipatool` для текущей системы, собирает программу через PyInstaller, проверяет, что она
+запускается (`--smoke`), и упаковывает её:
+
+| Система | Результат | Что ещё нужно |
+|---|---|---|
+| Windows | `dist\VozvratSetup.exe` | [Inno Setup 6](https://jrsoftware.org/isdl.php); `build.bat` делает всё то же |
+| macOS | `dist/Vozvrat-macOS-<arch>.dmg` | ничего |
+| Linux | `dist/Vozvrat-Linux-<arch>.tar.gz` и `.AppImage` | [appimagetool](https://github.com/AppImage/appimagetool) для AppImage |
+
+Перед сборкой на Windows закройте запущенный «Возврат»: иначе система не даст перезаписать его файлы.
+
+**GitHub Actions** (`.github/workflows/build.yml`) собирает все четыре варианта на машинах GitHub.
+Сборку можно запустить вручную во вкладке Actions, она также запускается на pull request. При пуше тега
+вида `v1.2.0` готовые файлы автоматически прикрепляются к релизу.
 
 ## Отказ от ответственности
 

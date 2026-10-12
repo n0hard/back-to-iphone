@@ -1,4 +1,7 @@
-"""Работа с iPhone по USB через pymobiledevice3 (нужен драйвер Apple: iTunes или «Apple Devices»)."""
+"""Работа с iPhone по USB через pymobiledevice3.
+
+Нужна служба usbmuxd: на Windows её ставит «Apple Devices» или iTunes, на macOS она встроена,
+на Linux это пакет usbmuxd."""
 import json
 import os
 import subprocess
@@ -6,8 +9,15 @@ import sys
 
 ENV = {**os.environ, "PYTHONWARNINGS": "ignore", "NO_COLOR": "1", "PYTHONIOENCODING": "utf-8"}
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-# в собранном .exe pymobiledevice3 вызывается через сам exe (см. main.py)
+# в собранной программе pymobiledevice3 вызывается через её же исполняемый файл (см. main.py)
 PMD3 = [sys.executable, "--pmd3"] if getattr(sys, "frozen", False) else [sys.executable, "-m", "pymobiledevice3"]
+
+
+DRIVER_HINT = {
+    "win32": "Не найден драйвер Apple. Установите «Apple Devices» из Microsoft Store или iTunes",
+    "darwin": "macOS не видит iPhone. Переподключите кабель и разблокируйте iPhone",
+}.get(sys.platform, "Не запущена служба usbmuxd. Установите её (sudo apt install usbmuxd или аналог "
+                   "для вашего дистрибутива) и переподключите iPhone")
 
 
 class DeviceError(Exception):
@@ -54,7 +64,7 @@ def _explain(text):
     if "pairing" in t or "not paired" in t or "passwordprotected" in t or "user denied" in t:
         return "Разблокируйте iPhone и нажмите «Доверять этому компьютеру», затем повторите"
     if "usbmux" in t and ("connect" in t or "refused" in t):
-        return "Не найден драйвер Apple. Установите «Apple Devices» из Microsoft Store или iTunes"
+        return DRIVER_HINT
     if "applicationverificationfailed" in t:
         return "iPhone отклонил приложение: подпись не прошла проверку (вероятно, IPA скачан с другим Apple ID)"
     if "devicefamily" in t or "minimumosversion" in t or "requires a newer" in t:

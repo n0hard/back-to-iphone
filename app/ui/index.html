@@ -146,7 +146,7 @@
       <summary>Вопросы</summary>
       <p><b>Приложение не найдено в истории покупок.</b> Его нужно было хоть раз скачать с этого Apple ID до удаления из App Store. Попробуйте другой Apple ID.</p>
       <p><b>Не приходят push-уведомления.</b> Для некоторых удалённых приложений Apple отключила пуши — это ограничение Apple.</p>
-      <p><b>Windows не видит iPhone.</b> Установите «Apple Devices» из Microsoft Store (или iTunes), переподключите кабель.</p>
+      <p id="faqDriver"><b>Компьютер не видит iPhone.</b> Переподключите кабель, разблокируйте iPhone и нажмите «Доверять».</p>
       <p><b>Обновления.</b> Удалённые приложения не обновляются через App Store. Чтобы получить свежую версию (если разработчик её выпустил), установите приложение снова.</p>
     </details>
   </section>
@@ -427,7 +427,13 @@ async function poll() {
 }
 
 (async () => {
-  account = (await api("/api/state")).account; renderAccount();
+  const state = await api("/api/state");
+  account = state.account; renderAccount();
+  const driver = {
+    win32: "Установите «Apple Devices» из Microsoft Store (или iTunes) и переподключите кабель.",
+    linux: "Нужна служба usbmuxd: <code>sudo apt install usbmuxd</code> (или аналог для вашего дистрибутива), затем переподключите кабель.",
+  }[state.platform];
+  if (driver) $("faqDriver").insertAdjacentHTML("beforeend", " " + driver);
   catalog = (await api("/api/catalog")).apps;
   catalogGroups = makeGroups(catalog, "cat");
   $("catCount").textContent = `${catalog.length} ${plural(catalog.length, "приложение", "приложения", "приложений")}`;
