@@ -179,6 +179,7 @@
     <div id="scanProgress" class="hidden" style="margin-top:10px">
       <div class="bar"><div></div></div><div class="muted" id="scanText" style="margin-top:6px"></div>
     </div>
+    <div id="scanReasons" class="muted" style="margin-top:6px"></div>
     <div class="err" id="scanErr"></div>
     <div id="scanList"></div>
   </section>
@@ -724,8 +725,17 @@ function renderScan(s) {
   $("scanProgress").classList.toggle("hidden", !running && !s.total);
   const bar = $("scanProgress").querySelector(".bar > div");
   bar.style.width = s.total ? (s.checked / s.total * 100).toFixed(1) + "%" : "0";
-  $("scanText").textContent = `Проверено ${s.checked} из ${s.total} · найдено в покупках: ${s.found.length}`
+  $("scanText").textContent = (s.phase === "retry" ? "Перепроверяю сбойные по одному… " : "")
+    + `Проверено ${s.checked} из ${s.total} · найдено в покупках: ${s.found.length}`
+    + (s.unavailable ? ` · нет в магазине вашей страны: ${s.unavailable}` : "")
     + (s.failed ? ` · не удалось проверить: ${s.failed}` : "");
+  // почему не удалось: причины по числу приложений и сами приложения — чтобы было видно, что пропущено
+  const reasons = Object.entries(s.reasons || {}).sort((a, b) => b[1] - a[1]);
+  $("scanReasons").innerHTML = reasons.length ? `<details><summary>Почему не удалось проверить</summary>
+      <ul>${reasons.map(([r, n]) => `<li>${esc(r)} — ${n}</li>`).join("")}</ul>
+      ${running ? "" : `<p class="muted">${(s.failedApps || []).map(a => esc(a.name)).join(", ")}</p>
+      <p class="muted">Эти приложения можно поставить вручную из каталога или запустить проверку ещё раз.</p>`}
+    </details>` : "";
   $("scanErr").textContent = s.error || "";
   if (running) { $("scanList").innerHTML = ""; return; }
   if (!s.total && !s.found.length) return;

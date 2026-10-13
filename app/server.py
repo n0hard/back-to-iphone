@@ -271,15 +271,43 @@ def app_updates(udid):
 
 # Есть ли приложение в покупках, узнаём запросом списка версий: он не скачивает IPA, а для приложения
 # не из истории покупок Apple отвечает «нужна лицензия». Запросы идут по одному на приложение,
-# поэтому параллельно немного — чтобы не упереться в ограничения App Store.
+# поэтому параллельно немного — чтобы не упереться в ограничения App Store. Временные сбои (сеть,
+# медленный ответ Apple, занятый файл сессии) не должны прятать купленные приложения: такие
+# приложения в конце перепроверяются по одному, с паузой.
 SCAN_WORKERS = 3
-scan = {"running": False, "checked": 0, "total": 0, "found": [], "failed": 0, "error": None}
+SCAN_RETRY_ROUNDS = 2
+SCAN_RETRY_PAUSE = 3  # сек между приложениями при перепроверке
+scan = {"running": False, "phase": "", "checked": 0, "total": 0, "found": [], "failed": 0,
+        "unavailable": 0, "reasons": {}, "failedApps": [], "error": None}
 scan_stop = threading.Event()
+
+NOT_OWNED = "нет в истории покупок"
+
+
+def scan_reason(error):
+    """(тип, понятная причина): тип — "not_owned", "unavailable" (нет в магазине вашей страны) или "failed"."""
+    t = str(error).lower()
+    if NOT_OWNED in t:
+        return "not_owned", ""
+    # ipatool ищет версию в магазине страны Apple ID; приложения, которых там нет (ChatGPT, V2Box…),
+    # из этого магазина не скачать, даже если они куплены в другой стране
+    if "storefront" in t or "недоступно для этого apple id" in t:
+        return "unavailable", "нет в магазине вашей страны"
+    if "не ответил вовремя" in t or "timeout" in t or "deadline" in t:
+        return "failed", "Apple не ответила вовремя"
+    if any(k in t for k in ("lock", "being used by another process", "access is denied")):
+        return "failed", "файл сессии был занят"
+    if any(k in t for k in ("connection", "dial tcp", "eof", "no such host", "tls", "network", "reset by peer")):
+        return "failed", "сетевая ошибка"
+    if "429" in t or "too many requests" in t or "rate limit" in t:
+        return "failed", "Apple ограничила частоту запросов"
+    return "failed", str(error).strip().splitlines()[-1][:120] if str(error).strip() else "неизвестная ошибка"
 
 
 def scan_snapshot():
     with lock:
-        return {**scan, "found": list(scan["found"])}
+        return {**scan, "found": list(scan["found"]), "reasons": dict(scan["reasons"]),
+                "failedApps": list(scan["failedApps"])}
 
 
 def start_scan(udid, category):
@@ -291,36 +319,66 @@ def start_scan(udid, category):
     apps = [a for a in catalog.load(wait=0)["apps"]
             if (not category or a.get("category") == category) and a["id"] not in skip]
     scan_stop.clear()
+    failed = {}  # id -> (app, причина) — то, что ещё предстоит перепроверить
     with lock:
-        scan.update(running=True, checked=0, total=len(apps), found=[], failed=0, error=None)
+        scan.update(running=True, phase="check", checked=0, total=len(apps), found=[], failed=0, unavailable=0,
+                    reasons={}, failedApps=[], error=None)
 
-    def check(app):
+    def publish():  # вызывается под lock
+        reasons = {}
+        for _, reason in failed.values():
+            reasons[reason] = reasons.get(reason, 0) + 1
+        scan["failed"] = len(failed)
+        scan["reasons"] = reasons
+        scan["failedApps"] = [{"id": app["id"], "name": app["name"], "reason": reason}
+                              for app, reason in failed.values()]
+
+    def check(app, first=True):
         if scan_stop.is_set():
             return
-        owned = failed = False
+        kind, reason, owned = "failed", "", False
         try:
             ids = store.list_versions(app["id"])
             version_ids[app["id"]] = ids  # пригодится окну «Версии»
-            owned = bool(ids)
+            owned, kind = bool(ids), "owned"
         except store.NotLoggedIn as e:
             scan_stop.set()
             with lock:
                 scan["error"] = str(e)
+            return
         except store.StoreError as e:
-            failed = "нет в истории покупок" not in str(e)
+            kind, reason = scan_reason(e)
         with lock:
-            scan["checked"] += 1
-            scan["failed"] += failed
+            if first:
+                scan["checked"] += 1
+            failed.pop(app["id"], None)
+            if kind == "failed":
+                failed[app["id"]] = (app, reason)
+            elif kind == "unavailable":
+                scan["unavailable"] += 1
             if owned:
                 scan["found"].append({"id": app["id"], "name": app["name"], "category": app.get("category")})
+            publish()
 
     def run():
         try:
             with ThreadPoolExecutor(SCAN_WORKERS) as pool:
                 list(pool.map(check, apps))
+            for _ in range(SCAN_RETRY_ROUNDS):  # перепроверка сбойных — по одному и не спеша
+                with lock:
+                    retry = [app for app, _ in failed.values()]
+                if not retry or scan_stop.is_set():
+                    break
+                with lock:
+                    scan["phase"] = "retry"
+                for app in retry:
+                    if scan_stop.wait(SCAN_RETRY_PAUSE):
+                        break
+                    check(app, first=False)
         finally:
             with lock:
                 scan["running"] = False
+                scan["phase"] = ""
                 scan["found"].sort(key=lambda a: a["name"].lower())
 
     threading.Thread(target=run, daemon=True).start()
