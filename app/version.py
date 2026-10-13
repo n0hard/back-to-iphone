@@ -10,5 +10,5 @@ MIN_VERSION — самая старая версия, которой ещё мо
 - обязательное обновление: MIN_VERSION = VERSION — все предыдущие версии перестанут работать.
 """
 VERSION = "1.4.1"
-MIN_VERSION = "1.3.2"
+MIN_VERSION = "1.4.1"
 REPO = "n0hard/back-to-iphone"
