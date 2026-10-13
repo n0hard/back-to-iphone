@@ -6,10 +6,13 @@ Apple требует для входа подпись SAP (FairPlay), котор
 автоматического перелогина при истечении токена и хранится там же, а не в этом приложении.
 Хранилище лежит в своей папке (IPATOOL_HOME), а не в общем ~/.ipatool: туда же пишут другие
 программы на ipatool (например, IPA_Downloader) своим ключом, и сессии портили бы друг друга.
+На Windows ipatool берёт домашнюю папку из HOMEDRIVE+HOMEPATH (не USERPROFILE), поэтому до 1.4.1
+сессия всё равно лежала в общем ~/.ipatool — при первом запуске она переносится (_migrate_session).
 """
 import json
 import os
 import secrets
+import shutil
 import subprocess
 import sys
 import threading
@@ -71,18 +74,53 @@ def _passphrase():
     return key.read_text(encoding="utf-8").strip()
 
 
-def _run(args, timeout=600, cancel=None):
-    cmd =[ipatool_path(), *args, "--format", "json", "--non-interactive", "--keychain-passphrase", _passphrase()]
-    IPATOOL_HOME.mkdir(parents=True, exist_ok=True)
+def _ipatool_env(home=None):
+    """Окружение для ipatool: его домашняя папка — IPATOOL_HOME (или home), а не общая папка пользователя."""
+    home = Path(home or IPATOOL_HOME)
+    home.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
     # На macOS сессия ipatool лежит в системной связке ключей, а не в общем файле, и HOME трогать нельзя:
     # от него зависит доступ к связке. На Windows и Linux — файловое хранилище в своей папке.
     if sys.platform == "win32":
-        env.update(USERPROFILE=str(IPATOOL_HOME), HOME=str(IPATOOL_HOME))
+        drive, rest = os.path.splitdrive(str(home))
+        # ipatool на Windows смотрит только на HOMEDRIVE+HOMEPATH; USERPROFILE/HOME — для остальных программ
+        env.update(HOMEDRIVE=drive, HOMEPATH=rest, USERPROFILE=str(home), HOME=str(home))
     elif sys.platform != "darwin":
-        env["HOME"] = str(IPATOOL_HOME)
+        env["HOME"] = str(home)
+    return env
+
+
+SESSION_FILES = ("account", "cookies", "kbsync-v1")
+
+
+def _migrate_session():
+    """Windows, до 1.4.1: сессия «Возврата» лежала в общем ~/.ipatool. Переносим её в свою папку, если она
+    открывается нашим ключом; чужую (другой программы) не трогаем — тогда «Возврат» попросит войти."""
+    marker = DATA / "session-migrated"
+    if sys.platform != "win32" or marker.exists():
+        return
+    shared = Path(os.environ.get("HOMEDRIVE", "") + os.environ.get("HOMEPATH", "")) / ".ipatool"
+    own = IPATOOL_HOME / ".ipatool"
+    try:
+        if (shared / "account").exists() and not (own / "account").exists() and shared != own:
+            own.mkdir(parents=True, exist_ok=True)
+            for name in SESSION_FILES:
+                if (shared / name).exists():
+                    shutil.copy2(shared / name, own / name)
+            try:
+                _run(["auth", "info"], timeout=60)
+            except StoreError:  # не наш ключ — сессия чужая
+                for name in SESSION_FILES:
+                    (own / name).unlink(missing_ok=True)
+    finally:
+        DATA.mkdir(parents=True, exist_ok=True)
+        marker.write_text("1", encoding="utf-8")
+
+
+def _run(args, timeout=600, cancel=None):
+    cmd =[ipatool_path(), *args, "--format", "json", "--non-interactive", "--keychain-passphrase", _passphrase()]
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
-                         errors="replace", creationflags=NO_WINDOW, env=env)
+                         errors="replace", creationflags=NO_WINDOW, env=_ipatool_env())
     deadline = time.monotonic() + timeout
     while True:  # ждём кусками, чтобы скачивание можно было прервать кнопкой «Отменить»
         try:
@@ -138,6 +176,7 @@ def _error(events, raw):
 # ---------- аккаунт ----------
 
 def account_info():
+    _migrate_session()
     try:
         r = _run(["auth", "info"], timeout=60)
     except StoreError:

@@ -84,3 +84,57 @@ class IpaTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SessionTest(unittest.TestCase):
+    """Своя папка ipatool: на Windows он берёт домашнюю папку из HOMEDRIVE+HOMEPATH, и до 1.4.1 сессия
+    лежала в общем ~/.ipatool — при первом запуске она переносится, если открывается нашим ключом."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.shared = self.tmp / "user" / ".ipatool"
+        self.shared.mkdir(parents=True)
+        for name in store.SESSION_FILES:
+            (self.shared / name).write_text(name, encoding="utf-8")
+        drive, rest = __import__("os").path.splitdrive(str(self.tmp / "user"))
+        self.patches = [
+            mock.patch.object(store, "DATA", self.tmp / "data"),
+            mock.patch.object(store, "IPATOOL_HOME", self.tmp / "data" / "ipatool-home"),
+            mock.patch.object(store.sys, "platform", "win32"),
+            mock.patch.dict(store.os.environ, {"HOMEDRIVE": drive, "HOMEPATH": rest}),
+        ]
+        for p in self.patches:
+            p.start()
+        self.own = self.tmp / "data" / "ipatool-home" / ".ipatool"
+
+    def tearDown(self):
+        for p in self.patches:
+            p.stop()
+
+    def test_env_points_ipatool_home_everywhere(self):
+        env = store._ipatool_env()
+        home = str(self.tmp / "data" / "ipatool-home")
+        self.assertEqual(env["HOMEDRIVE"] + env["HOMEPATH"], home)
+        self.assertEqual((env["USERPROFILE"], env["HOME"]), (home, home))
+
+    def test_own_session_is_moved(self):
+        with mock.patch.object(store, "_run", return_value={"success": True}) as run:
+            store._migrate_session()
+        run.assert_called_once()
+        self.assertEqual(sorted(p.name for p in self.own.iterdir()), sorted(store.SESSION_FILES))
+        self.assertTrue((self.tmp / "data" / "session-migrated").exists())
+        with mock.patch.object(store, "_run") as run:  # второй раз ничего не делает
+            store._migrate_session()
+        run.assert_not_called()
+
+    def test_foreign_session_is_left_alone(self):
+        with mock.patch.object(store, "_run", side_effect=store.StoreError("integrity check failed")):
+            store._migrate_session()
+        self.assertEqual(list(self.own.iterdir()), [])
+        self.assertTrue((self.shared / "account").exists())  # чужую сессию не трогаем
+
+    def test_other_platforms_do_nothing(self):
+        with mock.patch.object(store.sys, "platform", "linux"), mock.patch.object(store, "_run") as run:
+            store._migrate_session()
+        run.assert_not_called()
+        self.assertFalse(self.own.exists())

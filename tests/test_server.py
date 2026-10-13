@@ -72,6 +72,7 @@ class RestoreScanTest(unittest.TestCase):
     def run_scan(self, list_versions, category=None, installed=()):
         with mock.patch.object(catalog, "load", lambda wait=5: CATALOG), \
                 mock.patch.object(server, "installed_known", lambda udid: {i: {} for i in installed}), \
+                mock.patch.object(server, "SCAN_RETRY_PAUSE", 0), \
                 mock.patch.object(store, "list_versions", list_versions):
             server.start_scan("UDID", category)
             for _ in range(200):
@@ -103,6 +104,43 @@ class RestoreScanTest(unittest.TestCase):
             raise store.StoreError("App Store не ответил вовремя")
         s = self.run_scan(list_versions)
         self.assertEqual((s["failed"], s["found"]), (5, []))
+        self.assertEqual(s["reasons"], {"Apple не ответила вовремя": 5})
+        self.assertEqual(len(s["failedApps"]), 5)
+
+    def test_transient_failure_is_retried(self):
+        # купленное приложение, на котором первый запрос сорвался, не должно потеряться
+        calls = {}
+
+        def list_versions(app_id):
+            calls[app_id] = calls.get(app_id, 0) + 1
+            if app_id == 1002 and calls[app_id] == 1:
+                raise store.StoreError("failed to send http request: dial tcp: connection reset by peer")
+            if app_id == 1002:
+                return ["v1"]
+            raise store.StoreError("Этого приложения нет в истории покупок этого Apple ID")
+
+        s = self.run_scan(list_versions)
+        self.assertEqual([a["id"] for a in s["found"]], [1002])
+        self.assertEqual((s["checked"], s["failed"], s["reasons"]), (5, 0, {}))
+        self.assertEqual(calls[1002], 2)
+
+    def test_other_storefront_is_not_a_failure(self):
+        def list_versions(app_id):
+            raise store.StoreError("failed to resolve latest iOS version for redownload: app 6448311069 in "
+                                   "storefront RU (catalogs: enterprisestore, iphone, ipad)")
+        s = self.run_scan(list_versions)
+        self.assertEqual((s["failed"], s["unavailable"]), (0, 5))
+
+    def test_scan_reason(self):
+        cases = {
+            "Этого приложения нет в истории покупок этого Apple ID": "not_owned",
+            "Приложение недоступно для этого Apple ID (регион или удаление)": "unavailable",
+            "App Store не ответил вовремя, попробуйте ещё раз": "failed",
+            "failed to generate signature": "failed",  # «rate» внутри слова — не ограничение частоты
+        }
+        for error, kind in cases.items():
+            self.assertEqual(server.scan_reason(error)[0], kind, error)
+        self.assertEqual(server.scan_reason("failed to generate signature")[1], "failed to generate signature")
 
     def test_logged_out_stops_with_message(self):
         def list_versions(app_id):
