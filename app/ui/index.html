@@ -52,6 +52,12 @@
           place-items: center; font-weight: 700; font-size: 20px; overflow: hidden; }
   .icon img { width: 100%; height: 100%; }
   .app .name { font-weight: 600; line-height: 1.25; }
+  .app .inst { color: var(--ok); font-size: 12px; font-weight: 600; line-height: 1.3; }
+  select { padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--text);
+           font: inherit; flex: 0 1 220px !important; }
+  .scan-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .scan-item:last-child { border-bottom: 0; }
+  .scan-item label { display: flex; gap: 10px; align-items: center; flex: 1; cursor: pointer; }
   .app button { padding: 6px 12px; font-size: 13px; margin-top: auto; }
   .act { width: 100%; margin-top: auto; }
   .act .muted, .act .err { font-size: 12px; line-height: 1.35; margin-top: 4px; }
@@ -84,6 +90,11 @@
   .upd-box .bar { margin: 4px 0 8px; height: 8px; border-radius: 4px; }
   .upd-box button { width: 100%; padding: 12px; font-size: 16px; }
   .upd-box .err { margin: 0 0 14px; }
+  .upd-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--accent-2);
+                border: 1px solid var(--accent); border-radius: 12px; padding: 10px 14px; margin: 0 0 16px; }
+  .upd-banner .txt { flex: 1 1 200px; }
+  .upd-banner button { padding: 6px 14px; font-size: 13px; }
+  .upd-banner .err { flex-basis: 100%; margin: 0; }
   .ver-tag { font-size: 12px; color: var(--muted); font-weight: 500; margin-left: auto; }
   .upd-list .ver:last-child { border-bottom: 0; }
   .note { background: var(--warn-bg); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
@@ -107,6 +118,12 @@
 <body>
 <div class="wrap">
   <header><div class="logo">↺</div><h1>Возврат</h1><span class="ver-tag" id="verTag"></span></header>
+  <div class="upd-banner hidden" id="updBanner">
+    <div class="txt">Доступна новая версия <b id="updBannerVer"></b>. Обновление займёт около минуты.</div>
+    <button id="updBannerBtn">Обновить</button>
+    <button class="ghost" id="updBannerLater">Позже</button>
+    <div class="err hidden" id="updBannerErr"></div>
+  </div>
   <p class="sub">Возвращает на iPhone приложения, удалённые из App Store: скачивает оригинальный IPA из истории покупок вашего Apple ID и ставит его по USB.</p>
 
   <!-- 1. Apple ID -->
@@ -147,6 +164,23 @@
     <button class="ghost" id="appUpdBtn">Проверить обновления</button>
     <div class="err" id="appUpdErr"></div>
     <div id="appUpdList" class="upd-list"></div>
+  </section>
+
+  <!-- Вернуть всё сразу -->
+  <section class="card">
+    <h2><span class="num">⇊</span>Вернуть всё сразу</h2>
+    <p class="muted">«Возврат» найдёт приложения каталога, которые есть в истории покупок вашего Apple ID, но ещё не
+      стоят на iPhone, и поставит их одной кнопкой. Проверка идёт без скачивания — по запросу к App Store на каждое
+      приложение, поэтому для всего каталога займёт несколько минут.</p>
+    <div class="row">
+      <select id="scanCat" aria-label="Категория"></select>
+      <button class="ghost" id="scanBtn">Найти мои приложения</button>
+    </div>
+    <div id="scanProgress" class="hidden" style="margin-top:10px">
+      <div class="bar"><div></div></div><div class="muted" id="scanText" style="margin-top:6px"></div>
+    </div>
+    <div class="err" id="scanErr"></div>
+    <div id="scanList"></div>
   </section>
 
   <!-- 3. Приложение -->
@@ -260,6 +294,19 @@ async function loadDevices() {
     : `<div class="muted">iPhone не найден</div>`;
   $("devs").querySelectorAll(".dev").forEach(el => el.onclick = () => { udid = el.dataset.udid; loadDevices(); });
   $("n2").classList.toggle("done", !!udid); $("n2").textContent = udid ? "✓" : "2";
+  if (udid !== installedFor) loadInstalled();
+}
+
+// Что из каталога уже стоит на выбранном iPhone: appId -> {version, name}
+let installed = {}, installedFor = null;
+async function loadInstalled() {
+  installedFor = udid;
+  let apps = {};
+  if (udid) { try { apps = (await api("/api/installed?udid=" + encodeURIComponent(udid))).apps; } catch (e) { /* не страшно */ } }
+  if (installedFor !== udid) return;  // пока ждали, выбрали другой iPhone
+  installed = apps;
+  renderCatalog();
+  if (lastResults) showResults(lastResults);
 }
 $("refreshDevs").onclick = loadDevices;
 
@@ -299,8 +346,11 @@ function groupCard(g) {
   const style = face.icon ? "" : `style="background:${esc(face.color || "var(--accent)")}"`;
   const n = g.apps.length;
   const sub = n > 1 ? `${n} ${plural(n, "вариант", "варианта", "вариантов")}` : `id${esc(face.id)}${face.removed ? " · нет в App Store" : ""}`;
+  const here = g.apps.find(a => installed[a.id]);
+  const inst = here ? `<div class="inst">✓ На iPhone · ${esc(installed[here.id].version)}${
+    here !== (g.main || g.apps[0]) ? ` <span class="muted">(${esc(variantLabel(here, g))})</span>` : ""}</div>` : "";
   return `<div class="app"><div class="icon" ${style}>${icon}</div>
-    <div class="name">${esc(g.title)}</div><div class="muted">${sub}</div>
+    <div class="name">${esc(g.title)}</div><div class="muted">${sub}</div>${inst}
     <div class="act" data-group="${esc(g.key)}">${actionHtml(g)}</div></div>`;
 }
 
@@ -440,7 +490,9 @@ function bindInstall(root) {
   });
 }
 
+let lastResults = null;
 function showResults(list) {
+  lastResults = list;
   $("searchErr").textContent = "";
   $("results").innerHTML = list.length ? list.map(groupCard).join("")
     : `<div class="muted">В каталоге такого приложения нет. Проверьте название или введите App Store ID.</div>`;
@@ -565,14 +617,21 @@ async function install(appId, name, versionId, versionLabel) {
   poll();
 }
 
-// Обновление программы. Пока версия не последняя (или проверить не удалось), экран обновления
-// перекрывает всё и его нельзя закрыть: сервер в это время тоже отклоняет вход и установку.
-const UPD_OK = ["current", "source"];
-let updTimer = null, platform = "";
+// Обновление программы. Обычное — плашка сверху, программой можно пользоваться дальше.
+// Обязательное (или если проверить не удалось) — экран обновления перекрывает всё и его нельзя закрыть:
+// сервер в это время тоже отклоняет вход и установку.
+const UPD_OK = ["current", "available", "source"];
+let updTimer = null, platform = "", bannerLater = false;
 function showUpd(st) {
   const ok = UPD_OK.includes(st.status);
   $("updScreen").classList.toggle("hidden", ok);
   document.body.style.overflow = ok ? "" : "hidden";  // страница под экраном обновления не прокручивается
+  const banner = st.status === "available" && !bannerLater;
+  $("updBanner").classList.toggle("hidden", !banner);
+  if (banner) {
+    $("updBannerVer").textContent = st.latest;
+    $("updBannerErr").textContent = st.error || ""; $("updBannerErr").classList.toggle("hidden", !st.error);
+  }
   if (ok) return;
   const btn = $("updBtn"), bar = $("updBar"), detail = $("updDetail"), err = $("updErr");
   const text = (title, body) => { $("updTitle").textContent = title; $("updText").textContent = body; };
@@ -581,10 +640,10 @@ function showUpd(st) {
   [btn, bar, detail].forEach(el => el.classList.add("hidden")); error("");
   if (st.status === "checking") text("Проверяю обновления…", "Это займёт несколько секунд.");
   else if (st.status === "failed") {
-    text("Не удалось проверить обновления", "«Возврат» работает только в последней версии, поэтому без проверки его не запустить.");
+    text("Не удалось проверить обновления", "Без проверки обновлений «Возврат» не запускается.");
     error(st.error); button("Повторить", "check");
   } else if (st.status === "outdated") {
-    text(`Вышла версия ${st.latest}`, `У вас версия ${st.current}, она больше не работает. Обновление займёт около минуты.`);
+    text(`Вышла версия ${st.latest}`, `Это обязательное обновление: версия ${st.current} больше не работает. Обновление займёт около минуты.`);
     button("Обновить", "start");
   } else if (st.status === "downloading") {
     text(`Скачиваю версию ${st.latest}…`, "Не закрывайте программу.");
@@ -610,6 +669,14 @@ async function watchUpdate() {
   if (st && st.status === "restarting") return;
   updTimer = setTimeout(watchUpdate, st && UPD_OK.includes(st.status) ? 60000 : 1000);
 }
+$("updBannerBtn").onclick = async () => {
+  $("updBannerBtn").disabled = true;
+  try { showUpd(await api("/api/update/start", {})); }
+  catch (e) { $("updBannerErr").textContent = e.message; $("updBannerErr").classList.remove("hidden"); }
+  finally { $("updBannerBtn").disabled = false; }
+  watchUpdate();
+};
+$("updBannerLater").onclick = () => { bannerLater = true; $("updBanner").classList.add("hidden"); };
 $("updBtn").onclick = async () => {
   const act = $("updBtn").dataset.act;
   $("updBtn").disabled = true;
@@ -648,14 +715,79 @@ $("appUpdBtn").onclick = async () => {
   finally { b.disabled = false; b.textContent = "Проверить обновления"; }
 };
 
+// «Вернуть всё сразу»: проверка истории покупок идёт на сервере, страница показывает прогресс
+let scanTimer = null;
+function renderScan(s) {
+  const running = s.running;
+  $("scanBtn").textContent = running ? "Остановить" : "Найти мои приложения";
+  $("scanCat").disabled = running;
+  $("scanProgress").classList.toggle("hidden", !running && !s.total);
+  const bar = $("scanProgress").querySelector(".bar > div");
+  bar.style.width = s.total ? (s.checked / s.total * 100).toFixed(1) + "%" : "0";
+  $("scanText").textContent = `Проверено ${s.checked} из ${s.total} · найдено в покупках: ${s.found.length}`
+    + (s.failed ? ` · не удалось проверить: ${s.failed}` : "");
+  $("scanErr").textContent = s.error || "";
+  if (running) { $("scanList").innerHTML = ""; return; }
+  if (!s.total && !s.found.length) return;
+  if (!s.found.length) {
+    $("scanList").innerHTML = `<p class="muted">В истории покупок не нашлось приложений, которых ещё нет на iPhone.</p>`;
+    return;
+  }
+  $("scanList").innerHTML = s.found.map(a => `<div class="scan-item"><label>
+      <input type="checkbox" checked data-scan="${esc(a.id)}" data-name="${esc(a.name)}">
+      <span><b>${esc(a.name)}</b> <span class="muted">${esc(a.category || "")}</span></span></label></div>`).join("")
+    + `<button id="scanInstall" style="margin-top:10px">Вернуть выбранные (${s.found.length})</button>`;
+  const boxes = () => [...$("scanList").querySelectorAll("input[data-scan]")];
+  boxes().forEach(b => b.onchange = () => {
+    const n = boxes().filter(x => x.checked && !x.disabled).length;
+    $("scanInstall").textContent = `Вернуть выбранные (${n})`; $("scanInstall").disabled = !n;
+  });
+  $("scanInstall").onclick = async () => {
+    if (!account) { $("scanErr").textContent = "Сначала войдите в Apple ID (шаг 1)"; return; }
+    if (!udid) { await loadDevices(); if (!udid) { $("scanErr").textContent = "Подключите iPhone (шаг 2)"; return; } }
+    $("scanInstall").disabled = true;
+    for (const b of boxes().filter(x => x.checked && !x.disabled)) { b.disabled = true; await install(b.dataset.scan, b.dataset.name); }
+    $("scanInstall").textContent = "Поставлено в очередь — прогресс в карточках каталога";
+  };
+}
+async function watchScan() {
+  clearTimeout(scanTimer);
+  try {
+    const s = await api("/api/restore-scan");
+    renderScan(s);
+    if (s.running) scanTimer = setTimeout(watchScan, 1000);
+  } catch (e) { $("scanErr").textContent = e.message; }
+}
+$("scanBtn").onclick = async () => {
+  $("scanErr").textContent = "";
+  try {
+    if ($("scanBtn").textContent === "Остановить") { renderScan(await api("/api/restore-scan/stop", {})); return; }
+    if (!account) { $("scanErr").textContent = "Сначала войдите в Apple ID (шаг 1)"; return; }
+    if (!udid) { await loadDevices(); if (!udid) { $("scanErr").textContent = "Подключите iPhone (шаг 2)"; return; } }
+    renderScan(await api("/api/restore-scan", {udid, category: $("scanCat").value}));
+    watchScan();
+  } catch (e) { $("scanErr").textContent = e.message; }
+};
+function fillScanCategories() {
+  const counts = {};
+  catalog.forEach(a => counts[a.category || "Другое"] = (counts[a.category || "Другое"] || 0) + 1);
+  $("scanCat").innerHTML = Object.entries(counts).map(([c, n]) =>
+    `<option value="${esc(c)}" ${c === "Банки" ? "selected" : ""}>${esc(c)} (${n})</option>`).join("")
+    + `<option value="">Весь каталог (${catalog.length})</option>`;
+}
+
 // Один общий опрос очереди: часто, пока что-то ставится, и редко в простое
-let pollTimer = null, handledRelogin = new Set();
+let pollTimer = null, handledRelogin = new Set(), seenDone = new Set(), pollStarted = false;
 function hasActive() { return Object.values(jobState).some(isActive); }
 async function poll() {
   clearTimeout(pollTimer);
   try {
     const {jobs} = await api("/api/jobs");
     jobs.forEach((j, i) => { j._seq = i; jobState[j.appId] = j; });  // jobs идут в порядке добавления — остаётся последняя
+    const fresh = jobs.filter(j => j.stage === "done" && !seenDone.has(j.id));
+    fresh.forEach(j => seenDone.add(j.id));
+    if (fresh.length && pollStarted) loadInstalled();  // что-то установилось — обновим отметки «На iPhone»
+    pollStarted = true;
     Object.keys(jobState).forEach(updateAct);
     for (const j of jobs) if (j.relogin && !handledRelogin.has(j.id)) { handledRelogin.add(j.id); account = null; renderAccount(); }
     const running = jobs.find(j => RUNNING.includes(j.stage)), waiting = jobs.filter(j => j.stage === "queued").length;
@@ -679,6 +811,8 @@ async function poll() {
   catalogGroups = makeGroups(catalog, "cat");
   $("catCount").textContent = `${catalog.length} ${plural(catalog.length, "приложение", "приложения", "приложений")}`;
   renderCatalog();
+  fillScanCategories();
+  watchScan();  // проверка могла идти, пока окно перезагружали
   loadDevices();
   poll();
   // во время установки iPhone не дёргаем; пока программа заблокирована до обновления — тоже

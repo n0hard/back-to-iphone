@@ -229,8 +229,9 @@ def latest_app_version(app_id):
     return latest
 
 
-def app_updates(udid):
-    """Приложения из каталога и из журнала установок, для которых у Apple есть версия новее, чем на iPhone."""
+def installed_known(udid):
+    """{App Store ID: {"version", "name"}} — приложения на iPhone, которые есть в каталоге или которые ставил
+    «Возврат» (их ID знает журнал установок). Остальные приложения на телефоне не трогаем."""
     if not udid:
         raise device.DeviceError("Подключите iPhone (шаг 2)")
     installed = device.installed_apps(udid)
@@ -239,12 +240,17 @@ def app_updates(udid):
     except (OSError, ValueError):
         journal = {}
     known = {a["id"]: a["name"] for a in catalog.load(wait=0)["apps"]}
-    candidates = []
+    result = {}
     for bundle_id, info in installed.items():
         app_id = info["appId"] or (journal.get(bundle_id) or {}).get("appId")
-        # не проверяем все приложения на телефоне — только удалённые из App Store, которые ставит «Возврат»
         if app_id and (app_id in known or bundle_id in journal):
-            candidates.append((app_id, known.get(app_id) or info["name"], info["version"]))
+            result[app_id] = {"version": info["version"], "name": known.get(app_id) or info["name"]}
+    return result
+
+
+def app_updates(udid):
+    """Приложения из каталога и из журнала установок, для которых у Apple есть версия новее, чем на iPhone."""
+    candidates = [(app_id, info["name"], info["version"]) for app_id, info in installed_known(udid).items()]
 
     def check(c):
         app_id, name, current = c
@@ -261,10 +267,70 @@ def app_updates(udid):
     return {"checked": len(candidates), "updates": sorted(found, key=lambda r: r["name"].lower())}
 
 
+# ---------- «Вернуть всё сразу»: какие приложения каталога есть в истории покупок ----------
+
+# Есть ли приложение в покупках, узнаём запросом списка версий: он не скачивает IPA, а для приложения
+# не из истории покупок Apple отвечает «нужна лицензия». Запросы идут по одному на приложение,
+# поэтому параллельно немного — чтобы не упереться в ограничения App Store.
+SCAN_WORKERS = 3
+scan = {"running": False, "checked": 0, "total": 0, "found": [], "failed": 0, "error": None}
+scan_stop = threading.Event()
+
+
+def scan_snapshot():
+    with lock:
+        return {**scan, "found": list(scan["found"])}
+
+
+def start_scan(udid, category):
+    """Проверяет приложения каталога (одной категории или все), которых ещё нет на iPhone."""
+    with lock:
+        if scan["running"]:
+            raise store.StoreError("Проверка уже идёт")
+    skip = set(installed_known(udid)) if udid else set()
+    apps = [a for a in catalog.load(wait=0)["apps"]
+            if (not category or a.get("category") == category) and a["id"] not in skip]
+    scan_stop.clear()
+    with lock:
+        scan.update(running=True, checked=0, total=len(apps), found=[], failed=0, error=None)
+
+    def check(app):
+        if scan_stop.is_set():
+            return
+        owned = failed = False
+        try:
+            ids = store.list_versions(app["id"])
+            version_ids[app["id"]] = ids  # пригодится окну «Версии»
+            owned = bool(ids)
+        except store.NotLoggedIn as e:
+            scan_stop.set()
+            with lock:
+                scan["error"] = str(e)
+        except store.StoreError as e:
+            failed = "нет в истории покупок" not in str(e)
+        with lock:
+            scan["checked"] += 1
+            scan["failed"] += failed
+            if owned:
+                scan["found"].append({"id": app["id"], "name": app["name"], "category": app.get("category")})
+
+    def run():
+        try:
+            with ThreadPoolExecutor(SCAN_WORKERS) as pool:
+                list(pool.map(check, apps))
+        finally:
+            with lock:
+                scan["running"] = False
+                scan["found"].sort(key=lambda a: a["name"].lower())
+
+    threading.Thread(target=run, daemon=True).start()
+    return scan_snapshot()
+
+
 # ---------- HTTP ----------
 
-GATED_GET = ("/api/devices", "/api/search", "/api/versions", "/api/app-updates")
-GATED_POST = ("/api/login", "/api/install")
+GATED_GET = ("/api/devices", "/api/search", "/api/versions", "/api/app-updates", "/api/installed")
+GATED_POST = ("/api/login", "/api/install", "/api/restore-scan")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -344,6 +410,11 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_json({"results": store.search(term)})
             elif url.path == "/api/versions":
                 self.send_json(versions(parse_app_id(q.get("id")), int(q.get("offset", 0)), int(q.get("limit", 15))))
+            elif url.path == "/api/installed":
+                apps = installed_known(q.get("udid"))
+                self.send_json({"apps": {str(k): v for k, v in apps.items()}})
+            elif url.path == "/api/restore-scan":
+                self.send_json(scan_snapshot())
             elif url.path == "/api/app-updates":
                 if not account:
                     return self.send_json({"error": "Сначала войдите в Apple ID"}, 400)
@@ -390,6 +461,13 @@ class Handler(BaseHTTPRequestHandler):
                 if not cancel(body.get("job")):
                     return self.send_json({"error": "Установку на iPhone прервать нельзя, дождитесь окончания"}, 400)
                 self.send_json({"ok": True})
+            elif path == "/api/restore-scan":
+                if not account:
+                    return self.send_json({"error": "Сначала войдите в Apple ID"}, 400)
+                self.send_json(start_scan(body.get("udid"), body.get("category") or None))
+            elif path == "/api/restore-scan/stop":
+                scan_stop.set()
+                self.send_json(scan_snapshot())
             elif path == "/api/update/check":
                 self.send_json(updater.check())
             elif path == "/api/update/start":

@@ -1,7 +1,10 @@
 """Обновление самой программы: проверка новой версии на GitHub, скачивание и установка в один клик.
 
-Пока установленная версия не последняя, программа не работает — так решил автор проекта.
-Если проверить не удалось (нет сети, GitHub недоступен), программа тоже не работает, пока проверка
+Обновления бывают обычные и обязательные. Каждый релиз содержит update.json с номером версии
+и MIN_VERSION — самой старой версией, которой ещё можно пользоваться (см. version.py):
+- версия старее MIN_VERSION — обязательное обновление: программа не работает, пока её не обновят;
+- версия новее MIN_VERSION, но не последняя — обычное: сверху страницы предложение обновиться.
+Если проверить не удалось (нет сети, GitHub недоступен), программа не работает, пока проверка
 не пройдёт: на экране кнопка «Повторить». Запуск из исходников (start.bat и т. п.) не блокируется:
 там обновление делается через git.
 
@@ -48,8 +51,9 @@ def state():
 
 
 def allowed():
-    """Можно ли пользоваться программой: только последняя версия (или запуск из исходников)."""
-    return state()["status"] in ("current", "source")
+    """Можно ли пользоваться программой: последняя версия, версия с необязательным обновлением
+    или запуск из исходников."""
+    return state()["status"] in ("current", "available", "source")
 
 
 def _set(**kw):
@@ -63,9 +67,28 @@ def version_tuple(v):
 
 # ---------- какая версия последняя ----------
 
+def latest_info():
+    """(последняя версия, MIN_VERSION) из update.json последнего релиза. Файл берётся по обычной ссылке
+    на скачивание — у неё нет лимита запросов, как у API GitHub (60 в час на IP, а у мобильных
+    операторов один IP на многих). В релизах до 1.4.0 файла нет — тогда номер берём по тегу и считаем
+    обновление обязательным, как и работали те версии."""
+    try:
+        r = requests.get(f"https://github.com/{REPO}/releases/latest/download/update.json", headers=HEADERS,
+                         timeout=15)
+        if r.ok:
+            data = r.json()
+            version, minimum = str(data["version"]), str(data.get("min_version") or data["version"])
+            if re.fullmatch(r"\d+(\.\d+)*", version) and re.fullmatch(r"\d+(\.\d+)*", minimum):
+                return version, minimum
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        pass
+    latest = latest_version()
+    return latest, latest
+
+
 def latest_version():
-    """Номер последнего релиза. Сначала через переадресацию страницы releases/latest — у неё нет лимита
-    запросов, как у API GitHub (60 в час на IP, а у мобильных операторов один IP на многих)."""
+    """Номер последнего релиза по тегу. Сначала через переадресацию страницы releases/latest (без лимита
+    запросов), затем через API GitHub."""
     errors = []
     try:
         r = requests.head(f"https://github.com/{REPO}/releases/latest", headers=HEADERS, timeout=15,
@@ -92,10 +115,10 @@ def check():
     if first:
         _set(status="checking", error=None)
     try:
-        latest = None
+        latest = minimum = None
         for attempt in range(3):  # пара повторов, чтобы не блокировать из-за мимолётного сбоя сети
             try:
-                latest = latest_version()
+                latest, minimum = latest_info()
                 break
             except UpdateError:
                 if attempt == 2:
@@ -108,10 +131,12 @@ def check():
             _set(status="failed", error=f"{e}. Проверьте подключение к интернету и нажмите «Повторить».")
         return state()  # при повторной проверке в фоне сбой сети не мешает работать
     newer = version_tuple(latest) > version_tuple(VERSION)
+    mandatory = newer and version_tuple(VERSION) < version_tuple(minimum)
     if not FROZEN:
-        _set(status="source", latest=latest)
+        _set(status="source", latest=latest, mandatory=mandatory)
     elif state()["status"] not in ("downloading", "installing"):
-        _set(status="outdated" if newer else "current", latest=latest, error=None)
+        status = "outdated" if mandatory else "available" if newer else "current"
+        _set(status=status, latest=latest, mandatory=mandatory, error=None)
     return state()
 
 
@@ -120,7 +145,7 @@ def start_background_checks():
         check()
         while True:
             time.sleep(RECHECK)
-            if state()["status"] == "current":
+            if state()["status"] in ("current", "available"):  # вдруг вышло обязательное обновление
                 check()
     threading.Thread(target=loop, daemon=True).start()
 
@@ -286,6 +311,12 @@ def _install_linux(path):
     _spawn_detached([str(appdir / "Vozvrat")])
 
 
+def _failed(message):
+    # необязательное обновление не удалось — программа продолжает работать, ошибка видна на плашке;
+    # обязательное — экран обновления остаётся с кнопкой «Повторить»
+    _set(status="error" if state().get("mandatory", True) else "available", error=message, progress=None)
+
+
 def _apply(latest):
     try:
         _set(status="downloading", progress=0, error=None, detail="")
@@ -293,10 +324,10 @@ def _apply(latest):
         _set(status="installing", progress=None, detail="")
         {"win32": _install_windows, "darwin": _install_macos}.get(sys.platform, _install_linux)(path)
     except UpdateError as e:
-        _set(status="error", error=str(e), progress=None)
+        _failed(str(e))
         return
     except Exception as e:
-        _set(status="error", error=f"Не удалось обновить: {type(e).__name__}: {e}", progress=None)
+        _failed(f"Не удалось обновить: {type(e).__name__}: {e}")
         return
     _set(status="restarting")
     time.sleep(1.5)  # даём странице получить ответ «перезапуск»
@@ -307,7 +338,7 @@ def start_update():
     st = state()
     if not FROZEN:
         raise UpdateError("Программа запущена из исходников: обновите её через git pull")
-    if st["status"] not in ("outdated", "error") or not st["latest"]:
+    if st["status"] not in ("outdated", "available", "error") or not st["latest"]:
         raise UpdateError("Обновление не требуется")
     threading.Thread(target=_apply, args=(st["latest"],), daemon=True).start()
 

@@ -14,7 +14,11 @@ permissions:
   contents: write
 
 jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
   build:
+    needs: tests
     strategy:
       fail-fast: false
       matrix:
@@ -25,9 +29,9 @@ jobs:
           - os: ubuntu-22.04      # старый glibc — сборка запустится и на более новых дистрибутивах
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -53,7 +57,7 @@ jobs:
           PYTHONIOENCODING: utf-8
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: vozvrat-${{ matrix.os }}
           path: dist/*
@@ -62,16 +66,33 @@ jobs:
   release:
     if: startsWith(github.ref, 'refs/tags/')
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
+      - uses: actions/checkout@v7
+        with:
+          path: src
+      # Номер версии и MIN_VERSION для проверки обновлений в программе: обновление обязательно для версий
+      # старее MIN_VERSION (см. app/version.py). Файл берётся по обычной ссылке, без лимита API GitHub
+      - name: update.json
+        run: |
+          python3 - <<'EOF'
+          import json, os
+          scope = {}
+          exec(open("src/app/version.py", encoding="utf-8").read(), scope)
+          tag = os.environ["GITHUB_REF_NAME"]
+          assert tag.lstrip("v") == scope["VERSION"], f"тег {tag} не совпадает с VERSION {scope['VERSION']}"
+          data = {"version": scope["VERSION"], "min_version": scope["MIN_VERSION"]}
+          json.dump(data, open("dist/update.json", "w"))
+          print(data)
+          EOF
       # Контрольные суммы для обновления из самой программы: файл берётся по обычной ссылке
       # на скачивание, у которой нет лимита запросов, как у API GitHub
       - name: SHA256SUMS.txt
         run: cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: dist/*
