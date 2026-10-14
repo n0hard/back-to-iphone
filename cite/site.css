@@ -64,6 +64,10 @@ button { font: inherit; letter-spacing: inherit; cursor: pointer; }
 
 /* HERO */
 .hero { text-align: center; padding: 72px 0 0; background: var(--bg); overflow: hidden; }
+.news { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 22px; padding: 6px 16px; border-radius: 980px;
+  background: rgba(0,113,227,.08); color: var(--blue); font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
+.news:hover { background: rgba(0,113,227,.14); text-decoration: none; }
+.news b { font-weight: 600; }
 .eyebrow { font-size: 21px; font-weight: 600; color: var(--ink); margin: 0 0 6px; letter-spacing: .011em; }
 h1 { font-size: clamp(40px, 7.2vw, 80px); line-height: 1.05; font-weight: 700; letter-spacing: -0.035em; margin: 0 auto 16px; max-width: 14em; }
 .grad { background: linear-gradient(90deg,#0071e3,#7a5cff 60%,#d94fc0); -webkit-background-clip: text; background-clip: text; color: transparent; }
