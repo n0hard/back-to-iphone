@@ -10,6 +10,7 @@ import pathlib, html, json, re
 cite = pathlib.Path(__file__).resolve().parent.parent / "cite"
 SITE = "https://n0hard.github.io/back-to-iphone/"
 GH = "https://github.com/n0hard/back-to-iphone"
+TG = "https://t.me/vzvrt_app"  # поддержка в Telegram
 REL = GH + "/releases/latest/download/"
 
 BLOG_CSS = """
@@ -321,8 +322,9 @@ POSTS = [
 <p>Программа не может заменить сама себя. На macOS перенесите «Возврат» из «Загрузок» в «Программы», на Linux — в папку, куда у вас есть права на запись, и повторите. Подробнее — в <a href="../obnovleniya/">статье об обновлениях</a>.</p>
 <h2>Не входит в Apple ID после IPA_Downloader</h2>
 <p>Войдите в «Возврат» ещё раз: он хранит сессию отдельно.</p>
-<h2>Другие вопросы</h2>
-<p>Опишите проблему в <a href="https://github.com/n0hard/back-to-iphone/issues" target="_blank" rel="noopener noreferrer">Issues на GitHub</a>.</p>
+<h2>Не нашли ответа?</h2>
+<p>Напишите в поддержку в Telegram — <a href="https://t.me/vzvrt_app" target="_blank" rel="noopener noreferrer">@vzvrt_app</a>. Приложите текст ошибки, версию «Возврата» (видна рядом с названием в окне программы), систему компьютера и модель iPhone с версией iOS.</p>
+<p>Ошибку в программе можно описать и в <a href="https://github.com/n0hard/back-to-iphone/issues" target="_blank" rel="noopener noreferrer">Issues на GitHub</a>.</p>
 """),
 ]
 
@@ -381,7 +383,7 @@ DATES = {
     "bezopasnost-apple-id": ("2026-10-12", "2026-10-19"),
     "ustanovka-windows-macos-linux": ("2026-10-12", "2026-10-14"),
     "ne-prihodyat-push": ("2026-10-12", "2026-10-12"),
-    "drugie-oshibki": ("2026-10-12", "2026-10-14"),
+    "drugie-oshibki": ("2026-10-12", "2026-10-19"),
 }
 for p in POSTS:
     p["date"], p["updated"] = DATES[p["slug"]]
@@ -479,7 +481,7 @@ def FOOT(root):
         <div class="foot-col wide"><h4>Инструкции</h4>{guides}<a href="{root}blog/">Все статьи блога</a></div>
         <div class="foot-col"><h4>Помощь</h4>
           <a href="{root}#faq">Вопросы и ответы</a><a href="{root}blog/drugie-oshibki/">Частые ошибки</a>
-          <a href="{GH}/issues" {ext}>Сообщить о проблеме</a></div>
+          <a href="{TG}" {ext}>Поддержка в Telegram</a><a href="{GH}/issues" {ext}>Сообщить о проблеме на GitHub</a></div>
       </div>
       <div class="foot-legal">
         <p>Проект для личного использования. Он не связан с Apple и не распространяет чужие приложения: всё скачивается с серверов Apple под вашим Apple ID и только из вашей истории покупок. Используйте на свой страх и риск и соблюдайте условия Apple.</p>
