@@ -64,6 +64,7 @@ button { font: inherit; letter-spacing: inherit; cursor: pointer; }
 
 /* HERO */
 .hero { text-align: center; padding: 72px 0 0; background: var(--bg); overflow: hidden; }
+.hero-meta { margin: 16px auto 0; font-size: 14px; color: var(--ink-2); letter-spacing: -0.01em; }
 .news { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 22px; padding: 6px 16px; border-radius: 980px;
   background: rgba(0,113,227,.08); color: var(--blue); font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
 .news:hover { background: rgba(0,113,227,.14); text-decoration: none; }
@@ -182,7 +183,13 @@ code { font-family: var(--mono); font-size: .88em; background: rgba(0,0,0,.06); 
 
 /* FOOTER */
 footer { background: var(--bg-alt); color: var(--ink-2); font-size: 12px; padding: 32px 0 40px; border-top: 1px solid var(--line); }
-footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+footer .wrap { display: block; }
+.foot-cols { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.foot-col h4 { margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--ink); letter-spacing: 0; }
+.foot-col a { display: block; color: var(--ink-2); text-decoration: none; padding: 4px 0; line-height: 1.35; }
+.foot-col a:hover { color: var(--ink); text-decoration: underline; }
+.foot-legal { padding-top: 18px; }
+@media (max-width: 700px) { .foot-cols { grid-template-columns: 1fr; gap: 20px; } }
 footer p { margin: 0 0 6px; max-width: 46em; line-height: 1.5; }
 footer a { color: var(--ink-2); text-decoration: underline; }
 .foot-links { display: flex; gap: 20px; flex-wrap: wrap; }

@@ -9,6 +9,9 @@ on:
     branches: [main]
     paths:
       - "cite/**"
+      - "app/catalog.json"
+      - "app/version.py"
+      - "tools/build_blog.py"
       - ".github/workflows/pages.yml"
 
 permissions:
@@ -28,6 +31,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
+
+      # числа каталога, версия программы, блог и sitemap — из текущих файлов репозитория
+      - name: Сборка сайта
+        run: python3 tools/build_blog.py
 
       - uses: actions/configure-pages@v6
 

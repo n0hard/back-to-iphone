@@ -4,13 +4,8 @@
 [[имя|подпись|narrow]], где имя — файл из cite/img без .png (его размер нужно добавить в IMG).
 Запуск из корня репозитория:  python tools/build_blog.py
 """
-import pathlib, html, re
+import pathlib, html, json, re
 
-def fixlinks(t):
-    # file:// не открывает index.html в папке, поэтому ссылки на папки делаем явными
-    pat = r'href="((?:\.\./)+|(?:\.\./)*[a-z0-9-]+/)(#[^"]*)?"'
-    t = re.sub(pat, lambda m: 'href="%sindex.html%s"' % (m.group(1), m.group(2) or ""), t)
-    return t.replace('href="blog/"', 'href="blog/index.html"')
 
 cite = pathlib.Path(__file__).resolve().parent.parent / "cite"
 SITE = "https://n0hard.github.io/back-to-iphone/"
@@ -126,7 +121,7 @@ POSTS = [
 <p>Подключите телефон кабелем, разблокируйте его и нажмите «Доверять этому компьютеру». iPhone появится в списке. Если его нет, нажмите «Обновить список».</p>
 [[step-iphone|Подключённый iPhone с моделью и версией iOS. Кнопка «Обновить список» — если телефона нет]]
 <h2>Шаг 4. Выберите приложение</h2>
-<p>Найдите приложение в каталоге (в нём 441 приложение) или введите название, App Store ID либо ссылку вида <code>apps.apple.com/…/id123456789</code>. Нажмите «Установить». Не отключайте кабель и не блокируйте экран, пока идёт установка.</p>
+<p>Найдите приложение в каталоге (в нём %APPS%) или введите название, App Store ID либо ссылку вида <code>apps.apple.com/…/id123456789</code>. Нажмите «Установить». Не отключайте кабель и не блокируйте экран, пока идёт установка.</p>
 [[step-catalog|Поиск по каталогу с подсказками при вводе и каталог по категориям. У каждой карточки — «Установить» и «Все варианты…»]]
 <p>Можно нажать «Установить» у нескольких приложений сразу: они встанут в очередь. Отменить можно и ожидающие, и идущую загрузку — кнопкой «Отменить» в карточке.</p>
 [[queue-cards|Очередь: первое приложение скачивается, следующие ждут своей очереди, готовое отмечено «Установлено»]]
@@ -149,7 +144,7 @@ POSTS = [
 <li>Нажмите «Найти мои приложения». Программа проверит каждое приложение категории, которого ещё нет на iPhone.</li>
 </ol>
 [[restore-progress|Проверка идёт без скачивания — по запросу к App Store на каждое приложение. Её можно остановить]]
-<p>Банки проверяются примерно за пару минут, весь каталог из 441 приложения — за несколько минут. Ничего при этом не скачивается: программа только спрашивает App Store, есть ли приложение в истории покупок.</p>
+<p>Ничего при этом не скачивается: программа только спрашивает App Store, есть ли приложение в истории покупок. Apple отвечает в среднем за несколько секунд на приложение, поэтому банки проверяются примерно за 5 минут, а весь каталог из %APPS-GEN% — за 10–15 минут. Проверку можно остановить в любой момент.</p>
 <ol start="4">
 <li>Когда проверка закончится, появится список найденного. Снимите галочки с того, что ставить не нужно.</li>
 <li>Нажмите «Вернуть выбранные» — приложения встанут в очередь и поставятся по одному.</li>
@@ -263,7 +258,7 @@ POSTS = [
 <h2>Где хранится сессия</h2>
 <p>На Windows и Linux — в зашифрованном <code>ipatool-home</code> внутри папки программы, на macOS — в связке ключей.</p>
 <h2>Если вы пользовались IPA_Downloader и подобными</h2>
-<p>Начиная с версии 1.1.0 «Возврат» хранит сессию отдельно. Если вход не работает после других программ на ipatool, просто войдите в «Возврат» ещё раз.</p>
+<p>«Возврат» хранит сессию отдельно от других программ на ipatool: на macOS и Linux — начиная с версии 1.1.0, на Windows — с версии 1.4.1 (до неё на Windows сессия лежала в общей папке <code>.ipatool</code>, и 1.4.1 при первом запуске переносит её к себе). Если вход не работает после других программ на ipatool, просто войдите в «Возврат» ещё раз.</p>
 <div class="callout"><p><strong>Проверяйте сами</strong>Исходный код открыт. Если вы не готовы доверять сборке, соберите программу из исходников: инструкция есть в README репозитория.</p></div>
 """),
  dict(slug="ustanovka-windows-macos-linux", cover="step-iphone", tag="Инструкция", mins=5,
@@ -331,36 +326,6 @@ POSTS = [
 """),
 ]
 
-NAV = lambda root, blog_active: f"""
-  <header class="nav">
-    <div class="wrap">
-      <a class="brand" href="{root}" aria-label="Возврат — на главную"><span class="brand-ico" aria-hidden="true">↺</span>Возврат</a>
-      <ul class="menu" id="menu">
-        <li><a href="{root}#features">Возможности</a></li>
-        <li><a href="{root}#how">Как это работает</a></li>
-        <li><a href="{root}#download">Скачать</a></li>
-        <li><a href="{root}blog/"{' class="active"' if blog_active else ''}>Блог</a></li>
-        <li><a href="{root}#faq">Вопросы</a></li>
-        <li><a href="{GH}" target="_blank" rel="noopener noreferrer">GitHub</a></li>
-      </ul>
-      <div class="nav-cta">
-        <a class="btn sm" href="{root}#download">Скачать</a>
-        <button class="burger" id="burger" aria-label="Меню" aria-expanded="false" aria-controls="menu"><span></span><span></span></button>
-      </div>
-    </div>
-  </header>"""
-
-FOOT = lambda root: f"""
-  <footer>
-    <div class="wrap">
-      <div>
-        <p>Проект для личного использования. Он не связан с Apple и не распространяет чужие приложения: всё скачивается с серверов Apple под вашим Apple ID и только из вашей истории покупок.</p>
-        <p>Используются ipatool (MIT) и pymobiledevice3 (GPL-3.0). &copy; 2026 n0hard.</p>
-      </div>
-      <div class="foot-links"><a href="{GH}" target="_blank" rel="noopener noreferrer">GitHub</a><a href="{root}blog/">Блог</a><a href="#top">Наверх</a></div>
-    </div>
-  </footer>"""
-
 JS = """
   <script>
   (function () {
@@ -404,7 +369,131 @@ JS = """
   })();
   </script>"""
 
-def head(title, desc, url, root, extra=""):
+# ---------- даты статей (для читателей, разметки Article и sitemap) ----------
+# (опубликовано, обновлено). При правке статьи обновите вторую дату.
+DATES = {
+    "kak-vernut-udalennye-prilozheniya": ("2026-10-12", "2026-10-14"),
+    "vernut-vse-srazu": ("2026-10-14", "2026-10-19"),
+    "obnovleniya": ("2026-10-13", "2026-10-14"),
+    "ne-v-istorii-pokupok": ("2026-10-12", "2026-10-12"),
+    "staraya-versiya-prilozheniya": ("2026-10-12", "2026-10-14"),
+    "kak-eto-rabotaet": ("2026-10-12", "2026-10-12"),
+    "bezopasnost-apple-id": ("2026-10-12", "2026-10-19"),
+    "ustanovka-windows-macos-linux": ("2026-10-12", "2026-10-14"),
+    "ne-prihodyat-push": ("2026-10-12", "2026-10-12"),
+    "drugie-oshibki": ("2026-10-12", "2026-10-14"),
+}
+for p in POSTS:
+    p["date"], p["updated"] = DATES[p["slug"]]
+SITE_UPDATED = max(p["updated"] for p in POSTS)
+MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября",
+          "декабря"]
+
+
+def human_date(iso):
+    y, m, d = (int(x) for x in iso.split("-"))
+    return f"{d} {MONTHS[m - 1]} {y}"
+
+
+# ---------- числа каталога: берутся из app/catalog.json при каждой сборке ----------
+def plural(n, one, few, many):
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    return few if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14 else many
+
+
+_apps = json.loads((cite.parent / "app" / "catalog.json").read_text(encoding="utf-8"))["apps"]
+_base = lambda n: re.sub(r"\s*\([^()]*\)\s*$", "", n).strip() or n
+N_APPS = len(_apps)
+N_CARDS = len({(a.get("category"), _base(a["name"])) for a in _apps})
+COUNTS = {  # <span data-n="ключ">…</span> на страницах и %КЛЮЧ% в текстах статей
+    "apps-num": str(N_APPS),
+    "apps": f"{N_APPS} {plural(N_APPS, 'приложение', 'приложения', 'приложений')}",
+    "apps-gen": f"{N_APPS} {plural(N_APPS, 'приложения', 'приложений', 'приложений')}",
+    "cards": f"{N_CARDS} {plural(N_CARDS, 'карточку', 'карточки', 'карточек')}",
+}
+
+
+def counts(t):
+    t = re.sub(r'(<span data-n="([a-z-]+)">)[^<]*(</span>)', lambda m: m.group(1) + COUNTS[m.group(2)] + m.group(3), t)
+    return re.sub(r"%([A-Z-]+)%", lambda m: COUNTS.get(m.group(1).lower(), m.group(0)), t)
+
+
+def cleanlinks(t):
+    """Ссылки без index.html — те же адреса, что в canonical и sitemap (GitHub Pages открывает папку сам)."""
+    t = re.sub(r'href="((?:\.\./)*(?:[a-z0-9-]+/)*)index\.html(#[^"]*)?"',
+               lambda m: f'href="{m.group(1) or "./"}{m.group(2) or ""}"', t)
+    return t
+
+
+# ---------- коды подтверждения для Google Search Console и Яндекс.Вебмастера ----------
+# Вставьте значение content из выданного мета-тега — и пересоберите сайт.
+GOOGLE_VERIFICATION = ""
+YANDEX_VERIFICATION = ""
+
+
+def icons(root):
+    verify = ""
+    if GOOGLE_VERIFICATION:
+        verify += f'\n  <meta name="google-site-verification" content="{GOOGLE_VERIFICATION}" />'
+    if YANDEX_VERIFICATION:
+        verify += f'\n  <meta name="yandex-verification" content="{YANDEX_VERIFICATION}" />'
+    return (f'  <link rel="icon" type="image/png" sizes="32x32" href="{root}favicon-32.png" />\n'
+            f'  <link rel="icon" type="image/png" sizes="192x192" href="{root}favicon-192.png" />\n'
+            f'  <link rel="apple-touch-icon" href="{root}apple-touch-icon.png" />{verify}')
+
+
+NAV = lambda root, blog_active: f"""
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="{root or './'}" aria-label="Возврат — на главную"><span class="brand-ico" aria-hidden="true">↺</span>Возврат</a>
+      <ul class="menu" id="menu">
+        <li><a href="{root}#features">Возможности</a></li>
+        <li><a href="{root}#screens">Интерфейс</a></li>
+        <li><a href="{root}#download">Скачать</a></li>
+        <li><a href="{root}blog/"{' class="active"' if blog_active else ''}>Блог</a></li>
+        <li><a href="{root}#faq">Вопросы</a></li>
+        <li><a href="{GH}" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+      </ul>
+      <div class="nav-cta">
+        <a class="btn sm" href="{root}#download">Скачать</a>
+        <button class="burger" id="burger" aria-label="Меню" aria-expanded="false" aria-controls="menu"><span></span><span></span></button>
+      </div>
+    </div>
+  </header>"""
+
+FOOT_GUIDES = ["kak-vernut-udalennye-prilozheniya", "vernut-vse-srazu", "obnovleniya", "staraya-versiya-prilozheniya"]
+
+
+def FOOT(root):
+    guides = "".join(f'<a href="{root}blog/{s}/">{html.escape(next(p["title"] for p in POSTS if p["slug"] == s))}</a>'
+                     for s in FOOT_GUIDES)
+    ext = 'target="_blank" rel="noopener noreferrer"'
+    return f"""
+  <footer>
+    <div class="wrap">
+      <div class="foot-cols">
+        <div class="foot-col"><h4>Возврат</h4>
+          <a href="{root}#features">Возможности</a><a href="{root}#download">Скачать</a>
+          <a href="{GH}/releases" {ext}>Все версии</a><a href="{GH}" {ext}>Исходный код</a></div>
+        <div class="foot-col wide"><h4>Инструкции</h4>{guides}<a href="{root}blog/">Все статьи блога</a></div>
+        <div class="foot-col"><h4>Помощь</h4>
+          <a href="{root}#faq">Вопросы и ответы</a><a href="{root}blog/drugie-oshibki/">Частые ошибки</a>
+          <a href="{GH}/issues" {ext}>Сообщить о проблеме</a></div>
+      </div>
+      <div class="foot-legal">
+        <p>Проект для личного использования. Он не связан с Apple и не распространяет чужие приложения: всё скачивается с серверов Apple под вашим Apple ID и только из вашей истории покупок. Используйте на свой страх и риск и соблюдайте условия Apple.</p>
+        <p>Лицензия <a href="{GH}/blob/main/LICENSE" {ext}>GPL-3.0</a>. Используются <a href="https://github.com/majd/ipatool" {ext}>ipatool</a> (MIT) и <a href="https://github.com/doronz88/pymobiledevice3" {ext}>pymobiledevice3</a> (GPL-3.0). &copy; 2026 n0hard.</p>
+      </div>
+    </div>
+  </footer>"""
+
+
+def ld(data):
+    return '\n  <script type="application/ld+json">\n  ' + json.dumps(data, ensure_ascii=False) + "\n  </script>"
+
+
+def head(title, desc, url, root, extra="", og_type="article"):
     return f"""<!doctype html>
 <html lang="ru">
 <head>
@@ -412,19 +501,33 @@ def head(title, desc, url, root, extra=""):
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{html.escape(title)}</title>
   <meta name="description" content="{html.escape(desc, quote=True)}" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
   <meta name="theme-color" content="#ffffff" />
   <link rel="canonical" href="{SITE}{url}" />
-  <meta property="og:type" content="article" />
+{icons(root)}
+  <meta property="og:type" content="{og_type}" />
   <meta property="og:locale" content="ru_RU" />
   <meta property="og:site_name" content="Возврат" />
   <meta property="og:title" content="{html.escape(title, quote=True)}" />
   <meta property="og:description" content="{html.escape(desc, quote=True)}" />
   <meta property="og:url" content="{SITE}{url}" />
   <meta property="og:image" content="{SITE}og-image.jpg" />
+  <meta property="og:image:width" content="1376" />
+  <meta property="og:image:height" content="768" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="stylesheet" href="{root}site.css" />{extra}
 </head>
 <body id="top">"""
+
+
+def breadcrumbs(items):
+    return {"@type": "BreadcrumbList", "itemListElement": [
+        {"@type": "ListItem", "position": i + 1, "name": name, "item": url} for i, (name, url) in enumerate(items)]}
+
+
+def finish(t):
+    return counts(cleanlinks(t))
+
 
 # append blog css to site.css once
 css_path = cite / "site.css"
@@ -433,17 +536,28 @@ if "/* BLOG */" in css:
     css = css[:css.index("/* BLOG */")].rstrip() + "\n"
 css_path.write_text(css + BLOG_CSS, encoding="utf-8")
 
+AUTHOR = {"@type": "Person", "name": "n0hard", "url": "https://github.com/n0hard"}
+
 # article pages
 for i, p in enumerate(POSTS):
     d = cite / "blog" / p["slug"]
     d.mkdir(parents=True, exist_ok=True)
     others = [q for q in POSTS if q is not p][:4]
     rel = "".join(f'<li><a href="../{q["slug"]}/">{html.escape(q["title"])}</a></li>' for q in others)
-    page = head(p["title"] + " — Возврат", p["desc"], f'blog/{p["slug"]}/', "../../") + NAV("../../", True) + f"""
+    url = f'{SITE}blog/{p["slug"]}/'
+    images = [f"{SITE}img/{m}.png" for m in re.findall(r"\[\[([a-z0-9-]+)\|", p["body"])] or [f"{SITE}img/{p['cover']}.png"]
+    data = {"@context": "https://schema.org", "@graph": [
+        {"@type": "Article", "headline": p["title"], "description": p["desc"], "inLanguage": "ru",
+         "datePublished": p["date"], "dateModified": p["updated"], "author": AUTHOR, "publisher": AUTHOR,
+         "image": images, "mainEntityOfPage": url},
+        breadcrumbs([("Возврат", SITE), ("Блог", SITE + "blog/"), (p["title"], url)])]}
+    dates = (f'Опубликовано {human_date(p["date"])}' if p["date"] == p["updated"]
+             else f'Обновлено {human_date(p["updated"])}')
+    page = head(p["title"] + " — Возврат", p["desc"], f'blog/{p["slug"]}/', "../../", ld(data)) + NAV("../../", True) + f"""
   <main>
     <article class="article">
-      <p class="crumbs"><a href="../">← Блог</a></p>
-      <span class="tag">{p["tag"]}</span><span class="meta">{p["mins"]} мин</span>
+      <nav class="crumbs" aria-label="Навигация"><a href="../../">Главная</a> <span aria-hidden="true">›</span> <a href="../">Блог</a></nav>
+      <span class="tag">{p["tag"]}</span><span class="meta">{p["mins"]} мин · <time datetime="{p["updated"]}">{dates}</time></span>
       <h1>{html.escape(p["title"])}</h1>
       <p class="lede">{html.escape(p["desc"])}</p>
       {figs(p["body"], "../../")}
@@ -455,14 +569,14 @@ for i, p in enumerate(POSTS):
       <div class="related"><h3>Читайте также</h3><ul>{rel}</ul></div>
     </article>
   </main>""" + FOOT("../../") + JS + "\n</body>\n</html>\n"
-    (d / "index.html").write_text(fixlinks(page), encoding="utf-8")
+    (d / "index.html").write_text(finish(page), encoding="utf-8")
 
 # blog index
 f = POSTS[0]
 cards = "".join(f"""
         <a class="card" href="{q["slug"]}/" data-tag="{q["tag"]}">
           <div class="cover"><img src="../img/{q["cover"]}.png" width="{IMG[q["cover"]][0]}" height="{IMG[q["cover"]][1]}" loading="lazy" alt="" /></div>
-          <div><span class="tag">{q["tag"]}</span><span class="meta">{q["mins"]} мин</span></div>
+          <div><span class="tag">{q["tag"]}</span><span class="meta">{q["mins"]} мин · {human_date(q["updated"])}</span></div>
           <h2>{html.escape(q["title"])}</h2>
           <p>{html.escape(q["desc"])}</p>
           <span class="go">Читать →</span>
@@ -470,7 +584,13 @@ cards = "".join(f"""
 tags = sorted({q["tag"] for q in POSTS})
 filters = '<button class="tab" type="button" data-f="all" aria-pressed="true">Все</button>' + "".join(
     f'<button class="tab" type="button" data-f="{t}" aria-pressed="false">{t}</button>' for t in tags)
-idx = head("Блог — Возврат", "Как вернуть удалённые из App Store приложения на iPhone: инструкции, разборы и ответы на частые вопросы.", "blog/", "../") + NAV("../", True) + f"""
+blog_ld = {"@context": "https://schema.org", "@graph": [
+    {"@type": "Blog", "name": "Блог «Возврата»", "url": SITE + "blog/", "inLanguage": "ru",
+     "blogPost": [{"@type": "BlogPosting", "headline": q["title"], "url": f'{SITE}blog/{q["slug"]}/',
+                   "datePublished": q["date"], "dateModified": q["updated"]} for q in POSTS]},
+    breadcrumbs([("Возврат", SITE), ("Блог", SITE + "blog/")])]}
+idx = head("Блог — Возврат", "Как вернуть удалённые из App Store приложения на iPhone: инструкции, разборы и ответы на частые вопросы.",
+           "blog/", "../", ld(blog_ld), og_type="website") + NAV("../", True) + f"""
   <main>
     <section class="blog-hero"><div class="wrap">
       <p class="kicker">Блог</p>
@@ -480,7 +600,7 @@ idx = head("Блог — Возврат", "Как вернуть удалённ�
     <div class="blog-main"><div class="wrap">
       <a class="featured" href="{f["slug"]}/" data-tag="{f["tag"]}">
         <div>
-          <span class="tag">{f["tag"]}</span><span class="meta">{f["mins"]} мин</span>
+          <span class="tag">{f["tag"]}</span><span class="meta">{f["mins"]} мин · {human_date(f["updated"])}</span>
           <h2>{html.escape(f["title"])}</h2>
           <p>{html.escape(f["desc"])}</p>
           <span class="go">Читать →</span>
@@ -494,11 +614,51 @@ idx = head("Блог — Возврат", "Как вернуть удалённ�
     </div></div>
   </main>""" + FOOT("../") + JS + "\n</body>\n</html>\n"
 (cite / "blog").mkdir(exist_ok=True)
-(cite / "blog" / "index.html").write_text(fixlinks(idx), encoding="utf-8")
-ip = cite / "index.html"; ip.write_text(fixlinks(ip.read_text(encoding="utf-8")), encoding="utf-8")
+(cite / "blog" / "index.html").write_text(finish(idx), encoding="utf-8")
 
-# sitemap + robots
-urls = [SITE, SITE + "blog/"] + [f"{SITE}blog/{p['slug']}/" for p in POSTS]
-(cite / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + "".join(f"  <url><loc>{u}</loc></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
+# главная: общий подвал, значки, коды подтверждения и числа каталога
+ip = cite / "index.html"
+home = ip.read_text(encoding="utf-8")
+home = re.sub(r"\n  <footer>.*?</footer>", lambda m: FOOT(""), home, count=1, flags=re.S)
+home = re.sub(r"  <!-- icons -->\n.*?  <!-- /icons -->", lambda m: "  <!-- icons -->\n" + icons("") + "\n  <!-- /icons -->",
+              home, count=1, flags=re.S)
+_ver = {}
+exec((cite.parent / "app" / "version.py").read_text(encoding="utf-8"), _ver)
+home = re.sub(r'"softwareVersion": "[^"]*"', f'"softwareVersion": "{_ver["VERSION"]}"', home)
+home = re.sub(r'(<span data-v="version">)[^<]*(</span>)', lambda m: m.group(1) + _ver["VERSION"] + m.group(2), home)
+ip.write_text(finish(home), encoding="utf-8")
+
+# страница 404: GitHub Pages показывает её для любого несуществующего адреса — ссылки только абсолютные
+ROOT_PATH = "/back-to-iphone/"
+nf = head("Страница не найдена — Возврат", "Такой страницы нет на сайте «Возврата».", "404.html", ROOT_PATH) \
+    .replace('<meta name="robots" content="index, follow, max-image-preview:large" />', '<meta name="robots" content="noindex" />') \
+    + NAV(ROOT_PATH, False) + f"""
+  <main>
+    <section class="blog-hero"><div class="wrap">
+      <p class="kicker">Ошибка 404</p>
+      <h1>Такой страницы нет</h1>
+      <p>Возможно, ссылка устарела. Начните с главной страницы или загляните в блог.</p>
+      <p style="margin-top:28px"><a class="btn" href="{ROOT_PATH}">На главную</a> <a class="btn ghost" href="{ROOT_PATH}blog/">Блог</a></p>
+    </div></section>
+  </main>""" + FOOT(ROOT_PATH) + JS + "\n</body>\n</html>\n"
+(cite / "404.html").write_text(counts(nf), encoding="utf-8")
+
+# sitemap: адреса, даты изменения и скриншоты статей + robots
+SCREENS_HOME = ["main", "catalog-marks", "restore-found", "app-updates", "update-banner", "variants", "versions"]
+
+
+def sm_url(loc, lastmod, imgs=()):
+    images = "".join(f"\n    <image:image><image:loc>{SITE}img/{m}.png</image:loc></image:image>" for m in imgs)
+    return f"  <url>\n    <loc>{loc}</loc>\n    <lastmod>{lastmod}</lastmod>{images}\n  </url>\n"
+
+
+sitemap = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+           'xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n'
+           + sm_url(SITE, SITE_UPDATED, SCREENS_HOME) + sm_url(SITE + "blog/", SITE_UPDATED)
+           + "".join(sm_url(f"{SITE}blog/{p['slug']}/", p["updated"],
+                            dict.fromkeys(re.findall(r"\[\[([a-z0-9-]+)\|", p["body"]))) for p in POSTS)
+           + "</urlset>\n")
+(cite / "sitemap.xml").write_text(sitemap, encoding="utf-8")
 (cite / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE}sitemap.xml\n", encoding="utf-8")
-print("ok", len(POSTS))
+print("ok", len(POSTS), "статей;", COUNTS["apps"], "в", COUNTS["cards"])
