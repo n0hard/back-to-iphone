@@ -13,7 +13,7 @@ from pathlib import Path
 import helpers  # noqa: F401
 from helpers import ROOT
 
-SITE = "https://n0hard.github.io/back-to-iphone/"
+SITE = "https://vozvrat.qd.je/"
 
 
 class SiteBuildTest(unittest.TestCase):

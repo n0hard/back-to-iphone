@@ -8,7 +8,7 @@ import pathlib, html, json, re
 
 
 cite = pathlib.Path(__file__).resolve().parent.parent / "cite"
-SITE = "https://n0hard.github.io/back-to-iphone/"
+SITE = "https://vozvrat.qd.je/"
 GH = "https://github.com/n0hard/back-to-iphone"
 TG = "https://t.me/vzvrt_app"  # поддержка в Telegram
 REL = GH + "/releases/latest/download/"
@@ -631,7 +631,7 @@ home = re.sub(r'(<span data-v="version">)[^<]*(</span>)', lambda m: m.group(1) +
 ip.write_text(finish(home), encoding="utf-8")
 
 # страница 404: GitHub Pages показывает её для любого несуществующего адреса — ссылки только абсолютные
-ROOT_PATH = "/back-to-iphone/"
+ROOT_PATH = "/"
 nf = head("Страница не найдена — Возврат", "Такой страницы нет на сайте «Возврата».", "404.html", ROOT_PATH) \
     .replace('<meta name="robots" content="index, follow, max-image-preview:large" />', '<meta name="robots" content="noindex" />') \
     + NAV(ROOT_PATH, False) + f"""
