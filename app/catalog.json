@@ -1,5 +1,5 @@
 {
- "note": "ID взяты из архивных страниц apps.apple.com и списка IPA_Downloader (github.com/kda2495/IPA_Downloader, MIT); все приложения отсутствуют в российском App Store по данным iTunes Lookup на 11.10.2026. Названия вида «Бренд (Другое имя)» — приложения, которые выходили в App Store под другим названием.",
+ "note": "ID взяты из архивных страниц apps.apple.com и списка IPA_Downloader (github.com/kda2495/IPA_Downloader, MIT); все приложения, кроме My BMW, отсутствуют в российском App Store по данным iTunes Lookup на 11.10.2026; My BMW добавлен по запросу 19.10.2026. Названия вида «Бренд (Другое имя)» — приложения, которые выходили в App Store под другим названием.",
  "apps": [
   {
    "id": 492224193,
@@ -520,6 +520,13 @@
    "name": "HippoparkingRu (Tagapp Auto)",
    "color": "#64748B",
    "category": "Транспорт и АЗС"
+  },
+  {
+   "id": 1519034860,
+   "name": "My BMW",
+   "color": "#64748B",
+   "category": "Транспорт и АЗС",
+   "icon": "icons/1519034860.png"
   },
   {
    "id": 1516785397,
