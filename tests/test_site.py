@@ -13,7 +13,7 @@ from pathlib import Path
 import helpers  # noqa: F401
 from helpers import ROOT
 
-SITE = "https://vozvrat.qd.je/"
+SITE = "https://vozvratapp.ru/"
 
 
 class SiteBuildTest(unittest.TestCase):

@@ -8,7 +8,7 @@ import pathlib, html, json, re
 
 
 cite = pathlib.Path(__file__).resolve().parent.parent / "cite"
-SITE = "https://vozvrat.qd.je/"
+SITE = "https://vozvratapp.ru/"
 GH = "https://github.com/n0hard/back-to-iphone"
 TG = "https://t.me/vzvrt_app"  # поддержка в Telegram
 REL = GH + "/releases/latest/download/"
