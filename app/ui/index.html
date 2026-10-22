@@ -347,7 +347,8 @@ function groupCard(g) {
   const icon = face.icon ? `<img src="${esc(face.icon)}" alt="" loading="lazy">` : esc((g.title || "?")[0]);
   const style = face.icon ? "" : `style="background:${esc(face.color || "var(--accent)")}"`;
   const n = g.apps.length;
-  const sub = n > 1 ? `${n} ${plural(n, "вариант", "варианта", "вариантов")}` : `id${esc(face.id)}${face.removed ? " · нет в App Store" : ""}`;
+  const sub = n > 1 ? `${n} ${plural(n, "вариант", "варианта", "вариантов")}`
+    : (g.parent ? `вариант «${esc(g.parent)}» · ` : "") + `id${esc(face.id)}${face.removed ? " · нет в App Store" : ""}`;
   const here = g.apps.find(a => installed[a.id]);
   const inst = here ? `<div class="inst">✓ На iPhone · ${esc(installed[here.id].version)}${
     here !== (g.main || g.apps[0]) ? ` <span class="muted">(${esc(variantLabel(here, g))})</span>` : ""}</div>` : "";
@@ -469,6 +470,40 @@ function searchCatalog(query) {
     .sort((a, b) => b.score - a.score || a.order - b.order).map(x => x.g);
 }
 
+// Запрос про конкретный вариант («синоптик+» — вариант карточки «Совкомбанк Халва»): если в запросе есть слово
+// из названия варианта, которого нет в названии карточки, показываем сам вариант — отдельной карточкой,
+// которая ставит именно его. Запрос только про карточку («совкомбанк») по-прежнему показывает её целиком.
+function variantOf(g, query) {
+  const q = words(query);
+  if (!q.length || g.apps.length < 2) return [g];
+  const title = groupIndex(g).title, short = q.length > 1, exact = query.trim().toLowerCase();
+  let best = [], bestScore = 0;
+  for (const a of g.apps) {
+    const label = a === g.main ? null : (a.name.match(/\(([^()]*)\)\s*$/) || [])[1];
+    if (!label) continue;
+    const lw = words(label);
+    // слово про вариант: совпало с его названием и не является словом названия карточки (или его началом)
+    if (!q.some(t => tokenScore(t, lw, short) >= 2 && tokenScore(t, title, short) < 2)) continue;
+    let score = q.reduce((sum, t) => sum + tokenScore(t, lw, short), 0);
+    if (label.toLowerCase() === exact || a.name.toLowerCase() === exact) score += 2;
+    if (score > bestScore) { best = [{a, label}]; bestScore = score; }
+    else if (score === bestScore) best.push({a, label});  // одинаковые названия у разных приложений — показываем все
+  }
+  if (!best.length) return [g];
+  return best.map(({a, label}) => {
+    const k = `var:${a.id}`;
+    if (!groups[k]) {
+      groups[k] = {key: k, title: label, parent: g.title, category: g.category, apps: [a], main: a};
+      (groupKeys[a.id] ||= new Set()).add(k);
+    }
+    return groups[k];
+  });
+}
+function searchResults(query) {
+  const seen = new Set();
+  return searchCatalog(query).flatMap(g => variantOf(g, query)).filter(g => !seen.has(g.key) && seen.add(g.key));
+}
+
 let catalog = [], catalogGroups = [];
 function renderCatalog() {
   const f = $("catFilter").value.trim();
@@ -507,14 +542,14 @@ function closeSugg() { $("sugg").classList.add("hidden"); $("q").setAttribute("a
 function renderSugg() {
   const q = $("q").value.trim();
   if (!q) { closeSugg(); return; }
-  suggList = searchCatalog(q).slice(0, 8);
+  suggList = searchResults(q).slice(0, 8);
   $("sugg").innerHTML = suggList.length ? suggList.map((g, i) => {
     const face = g.main || g.apps[0], n = g.apps.length;
     const icon = face.icon ? `<img src="${esc(face.icon)}" alt="">` : esc((g.title || "?")[0]);
     const style = face.icon ? "" : `style="background:${esc(face.color || "var(--accent)")}"`;
     return `<div class="sugg-item ${i === suggOn ? "on" : ""}" role="option" id="sugg${i}" data-i="${i}">
       <div class="icon" ${style}>${icon}</div><div><b>${esc(g.title)}</b>
-      <div class="muted">${esc(g.category || "")}${n > 1 ? ` · ${n} ${plural(n, "вариант", "варианта", "вариантов")}` : ""}</div></div></div>`;
+      <div class="muted">${g.parent ? `вариант «${esc(g.parent)}» · ` : ""}${esc(g.category || "")}${n > 1 ? ` · ${n} ${plural(n, "вариант", "варианта", "вариантов")}` : ""}</div></div></div>`;
   }).join("") : `<div class="sugg-empty">В каталоге не найдено</div>`;
   $("sugg").classList.remove("hidden"); $("q").setAttribute("aria-expanded", "true");
   if (suggOn >= 0) $("q").setAttribute("aria-activedescendant", "sugg" + suggOn); else $("q").removeAttribute("aria-activedescendant");
@@ -528,7 +563,7 @@ function pickSugg(i) {
 $("searchBtn").onclick = async () => {
   const q = $("q").value.trim(); if (!q) return;
   closeSugg();
-  const found = searchCatalog(q);
+  const found = searchResults(q);
   const id = (q.match(/(?:^|\/id|\bid)(\d{6,})(?:\D|$)/) || [])[1];
   if (found.length || !id) { showResults(found); return; }
   // ID, которого нет в каталоге: приложение можно поставить напрямую по ID, как и раньше

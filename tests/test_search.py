@@ -51,6 +51,17 @@ const expected = {"Messenger Max": "MAX", "мессенджер макс": "MAX"
                   "вк": "ВКонтакте", "хай дай": "Hay Day", "АльфаБанк": "Альфа-Банк", "сбрбанк": "СберБанк Онлайн"};
 for (const [q, want] of Object.entries(expected)) if (first(q) !== want) fails.push(`«${q}» → ${first(q)}, ожидалось ${want}`);
 for (const q of ["2гис", "qwertyzzz"]) if (searchCatalog(q).length) fails.push(`«${q}» не должен ничего находить`);
+// Подсказки и «Найти» показывают сам вариант, если запрос про него, а не про карточку
+const firstR = q => (searchResults(q)[0] || {}).title || null;
+const variants = {"синоптик+": "Синоптик+", "Синоптик": "Синоптик+", "халва синоптик": "Синоптик+",
+                  "vibrogym": "VibroGym App", "совкомбанк": "Совкомбанк Халва", "т-банк": "Т-Банк"};
+for (const [q, want] of Object.entries(variants)) if (firstR(q) !== want) fails.push(`вариант: «${q}» → ${firstR(q)}, ожидалось ${want}`);
+for (const a of catalog) {
+  const g = catalogGroups.find(x => x.apps.includes(a)), label = (a.name.match(/\(([^()]*)\)\s*$/) || [])[1];
+  if (!label || a === g.main || g.apps.length < 2 || words(label).every(w => groupIndex(g).title.includes(w))) continue;
+  const r = searchResults(a.name).findIndex(x => x.apps.length === 1 && x.apps[0] === a);
+  if (r < 0 || r >= 8) fails.push(`вариант: «${a.name}» на месте ${r + 1}`);
+}
 console.log(JSON.stringify({apps: catalog.length, fails}));
 """
 
