@@ -39,6 +39,12 @@ class ErrorTest(unittest.TestCase):
             self.assertIsInstance(e, store.NetworkError, text)
             self.assertIn("VPN", str(e))
         self.assertNotIsInstance(self.err("invalid credentials"), store.NetworkError)
+        # не удалось даже подключиться — ждать бесполезно, нужен VPN, другая сеть или DNS
+        dial = ('send SAP request: Post "https://fpinit.itunes.apple.com/v1/signSapSetup/legacy": dial tcp '
+                '17.253.254.9:443: i/o timeout (Client.Timeout exceeded while awaiting headers)')
+        self.assertEqual(str(self.err(dial)), store.CONNECT_HINT)
+        self.assertIn("DNS", store.CONNECT_HINT)
+        self.assertEqual(str(self.err(sap)), store.NETWORK_HINT)
 
 
 class LoginTest(unittest.TestCase):
