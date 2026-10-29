@@ -54,6 +54,25 @@ class NeedCode(StoreError):
     """Apple требует код двухфакторной аутентификации."""
 
 
+class NetworkError(StoreError):
+    """Сервер Apple не ответил или соединение оборвалось: дело в сети, а не в Apple ID — стоит повторить."""
+
+
+NETWORK_HINT = ("Сервер Apple не ответил вовремя — это проблема сети, а не Apple ID. Повторите через минуту. "
+                "Если не поможет: выключите VPN или прокси (а если их нет — попробуйте с VPN), отключите на время "
+                "антивирус или подключитесь к другой сети, например раздайте интернет с телефона")
+# «dial tcp …: i/o timeout» — до сервера Apple не удалось даже подключиться: адрес блокирует провайдер,
+# роутер или антивирус. Ждать бесполезно — помогает VPN, другая сеть или другой DNS (другой адрес Apple)
+CONNECT_HINT = ("Не удаётся подключиться к серверу Apple: связь с ним блокируется на вашей стороне — у провайдера, "
+                "в роутере или антивирусе. Apple ID тут ни при чём. Включите VPN и повторите вход, или подключитесь "
+                "к другой сети (например, раздайте интернет с телефона), или смените DNS на 1.1.1.1 или 8.8.8.8")
+# ipatool (Go) пишет сетевые сбои так: «context deadline exceeded (Client.Timeout exceeded while awaiting
+# headers)», «dial tcp …: i/o timeout», «connection reset by peer», «no such host», «TLS handshake timeout»
+NETWORK_MARKERS = ("deadline exceeded", "client.timeout", "i/o timeout", "handshake timeout", "connection reset",
+                   "connection refused", "no such host", "network is unreachable", "unexpected eof",
+                   "server misbehaving", "dial tcp")
+
+
 class Canceled(StoreError):
     """Пользователь отменил скачивание."""
 
@@ -169,6 +188,10 @@ def _error(events, raw):
         return StoreError("Платное приложение: его можно установить, только если оно уже куплено")
     if "temporarily unavailable" in t or "2059" in t:
         return StoreError("Приложение недоступно для этого Apple ID (регион или удаление)")
+    if "dial tcp" in t and ("i/o timeout" in t or "refused" in t or "unreachable" in t):
+        return NetworkError(CONNECT_HINT)
+    if any(m in t for m in NETWORK_MARKERS):
+        return NetworkError(NETWORK_HINT)
     lines = [l for l in text.strip().splitlines() if l.strip()]
     return StoreError(lines[-1][:500] if lines else "Неизвестная ошибка App Store")
 
@@ -184,11 +207,22 @@ def account_info():
     return {"email": r.get("email", ""), "name": (r.get("name") or "").strip()}
 
 
+LOGIN_ATTEMPTS = 3
+LOGIN_RETRY_PAUSE = 5  # сек
+
+
 def login(email, password, code=""):
     args = ["auth", "login", "--email", email, "--password", password]
     if code:
         args += ["--auth-code", code]
-    r = _run(args, timeout=900)  # первый вход ipatool готовит эмулятор — может занять пару минут
+    for attempt in range(LOGIN_ATTEMPTS):  # сетевой сбой у Apple часто проходит за секунды — повторяем сами
+        try:
+            r = _run(args, timeout=900)  # первый вход ipatool готовит эмулятор — может занять пару минут
+            break
+        except NetworkError:
+            if attempt == LOGIN_ATTEMPTS - 1:
+                raise
+            time.sleep(LOGIN_RETRY_PAUSE)
     return {"email": r.get("email", email), "name": (r.get("name") or "").strip()}
 
 
