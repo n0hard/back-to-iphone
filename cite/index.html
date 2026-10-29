@@ -39,7 +39,7 @@
       {
         "@type": "SoftwareApplication",
         "name": "Возврат",
-        "softwareVersion": "1.4.1",
+        "softwareVersion": "1.4.4",
         "alternateName": "back-to-iphone",
         "applicationCategory": "UtilitiesApplication",
         "operatingSystem": "Windows 10/11, macOS 12+, Linux x86_64",
@@ -101,7 +101,7 @@
           <a class="btn" id="heroDl" href="#download">Скачать бесплатно</a>
           <a class="linkmore" href="#how">Как это работает</a>
         </div>
-        <p class="hero-meta" id="heroMeta">Версия <span data-v="version">1.4.1</span> · Windows, macOS и Linux · бесплатно, с открытым исходным кодом</p>
+        <p class="hero-meta" id="heroMeta">Версия <span data-v="version">1.4.4</span> · Windows, macOS и Linux · бесплатно, с открытым исходным кодом</p>
         <div class="hero-shot reveal">
           <div class="window">
             <div class="window-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="window-title">Возврат</span></div>
@@ -402,6 +402,7 @@
           <details><summary>Пишет «Этого приложения нет в истории покупок»</summary><div><p>Это значит, что приложение не скачивалось с этого Apple ID. Попробуйте другой вариант в «Все варианты…» или войдите под другим аккаунтом.</p></div></details>
           <details><summary>Пишет «Нужна iOS … или новее»</summary><div><p>Откройте «Версии» и поставьте более старую версию приложения, которая поддерживает iOS вашего iPhone.</p></div></details>
           <details><summary>iPhone не найден или «Не найден драйвер Apple»</summary><div><p>Windows: установите Apple Devices или iTunes. Linux: установите и запустите <code>usbmuxd</code>. Затем переподключите кабель, разблокируйте iPhone и нажмите «Доверять этому компьютеру».</p></div></details>
+          <details><summary>Ошибка при входе: сервер Apple не отвечает</summary><div><p>Это проблема сети, а не Apple ID: перед входом «Возврат» обращается к серверу Apple, и тот не ответил. Программа сама повторяет вход несколько раз. Если не помогло — выключите VPN или прокси (а если их нет, попробуйте с VPN), отключите на время антивирус, подключитесь к другой сети или смените DNS на 1.1.1.1. Подробнее — в <a href="blog/drugie-oshibki/">статье о частых ошибках</a>.</p></div></details>
           <details><summary>Безопасно ли вводить пароль Apple ID?</summary><div><p>Программа работает локально на вашем компьютере (127.0.0.1). Пароль передаётся только на серверы Apple через <code>ipatool</code>, двухфакторная аутентификация поддерживается. Исходный код открыт на GitHub.</p></div></details>
           <details><summary>Не приходят push-уведомления</summary><div><p>Для части удалённых приложений Apple отключила пуши. Это ограничение Apple, а не программы.</p></div></details>
           <details><summary>Поиск не находит приложение</summary><div><p>Поиск идёт только по каталогу программы (<span data-n="apps">444 приложения</span>) и понимает транслит, разговорные названия и небольшие опечатки: «макс» и «max», «сбол», «тинькофф». Если приложения в каталоге нет, введите его App Store ID или ссылку <code>apps.apple.com/…/id123456789</code>.</p></div></details>
