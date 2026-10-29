@@ -10,6 +10,7 @@ Apple требует для входа подпись SAP (FairPlay), котор
 сессия всё равно лежала в общем ~/.ipatool — при первом запуске она переносится (_migrate_session).
 """
 import json
+import random
 import os
 import secrets
 import shutil
@@ -71,6 +72,63 @@ CONNECT_HINT = ("Не удаётся подключиться к серверу 
 NETWORK_MARKERS = ("deadline exceeded", "client.timeout", "i/o timeout", "handshake timeout", "connection reset",
                    "connection refused", "no such host", "network is unreachable", "unexpected eof",
                    "server misbehaving", "dial tcp")
+
+
+class SessionBusy(StoreError):
+    """ipatool не дождался файла cookies: его держал другой запуск ipatool. at_start — упал при загрузке,
+    до обращения к Apple, и запуск можно безопасно повторить."""
+
+    def __init__(self, message, at_start=False):
+        super().__init__(message)
+        self.at_start = at_start
+
+
+SESSION_BUSY = "Файл сессии был занят другим запросом к App Store. Повторите — обычно со второго раза проходит"
+# Каждый запуск ipatool блокирует файл cookies в своей папке сессии и ждёт чужую блокировку всего 3 секунды,
+# а потом падает («panic: cannot load cookies: file locked for too long»). На Windows блокировка «переносимая» —
+# файл cookies.lock, который не всегда успевает удалиться, — и при нескольких одновременных запусках они падают
+# почти все. Поэтому одновременно работает не больше SLOTS запусков, и на Windows у каждого своя папка сессии:
+# слот 0 — основная (IPATOOL_HOME), остальные — её копии в DATA/ipatool-slots. Вход и выход идут только
+# через слот 0, копии догоняют его сами (_slot_home). На macOS и Linux блокировка системная и работает,
+# там все слоты — основная папка. Упавший на загрузке cookies запуск всё равно повторяется — на всякий случай.
+SLOTS = 3
+COOKIE_ATTEMPTS = 5
+_free_slots = set(range(SLOTS))
+_slots_cond = threading.Condition()
+
+
+def _take_slot(main_only):
+    with _slots_cond:
+        while not (0 in _free_slots if main_only else _free_slots):
+            _slots_cond.wait()
+        slot = 0 if 0 in _free_slots else min(_free_slots)
+        _free_slots.remove(slot)
+        return slot
+
+
+def _give_slot(slot):
+    with _slots_cond:
+        _free_slots.add(slot)
+        _slots_cond.notify_all()
+
+
+def _slot_home(slot):
+    """Папка сессии для слота. Копия повторяет основную: после входа берёт новую сессию, после выхода — без неё."""
+    if slot == 0 or sys.platform != "win32":
+        return IPATOOL_HOME
+    home = DATA / "ipatool-slots" / str(slot)
+    src, dst = IPATOOL_HOME / ".ipatool", home / ".ipatool"
+    dst.mkdir(parents=True, exist_ok=True)
+    account = src / "account"
+    if not account.exists():
+        for name in SESSION_FILES:
+            (dst / name).unlink(missing_ok=True)
+    elif not (dst / "account").exists() or (dst / "account").stat().st_mtime < account.stat().st_mtime:
+        for name in SESSION_FILES:
+            if (src / name).exists():
+                shutil.copy2(src / name, dst / name)
+        (dst / "cookies.lock").unlink(missing_ok=True)
+    return home
 
 
 class Canceled(StoreError):
@@ -137,9 +195,27 @@ def _migrate_session():
 
 
 def _run(args, timeout=600, cancel=None):
+    main_only = bool(args) and args[0] == "auth"  # вход, выход и проверка сессии — только в основной папке
+    for attempt in range(COOKIE_ATTEMPTS):
+        slot = _take_slot(main_only)
+        try:
+            return _run_once(args, timeout, cancel, _slot_home(slot))
+        except SessionBusy as e:
+            if not e.at_start or attempt == COOKIE_ATTEMPTS - 1:
+                raise
+            pause = random.uniform(0.5, 2.5)
+            if cancel is not None and cancel.wait(pause):
+                raise Canceled("Отменено")
+            if cancel is None:
+                time.sleep(pause)
+        finally:
+            _give_slot(slot)
+
+
+def _run_once(args, timeout, cancel, home=None):
     cmd =[ipatool_path(), *args, "--format", "json", "--non-interactive", "--keychain-passphrase", _passphrase()]
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
-                         errors="replace", creationflags=NO_WINDOW, env=_ipatool_env())
+                         errors="replace", creationflags=NO_WINDOW, env=_ipatool_env(home))
     deadline = time.monotonic() + timeout
     while True:  # ждём кусками, чтобы скачивание можно было прервать кнопкой «Отменить»
         try:
@@ -172,6 +248,8 @@ def _run(args, timeout=600, cancel=None):
 def _error(events, raw):
     text = " | ".join(str(e.get("error") or e.get("message") or "") for e in events) or raw
     t = text.lower()
+    if "cannot load cookies" in t or "cannot save cookies" in t or "cookies.lock" in t:
+        return SessionBusy(SESSION_BUSY, at_start="cannot load cookies" in t)
     if "auth code is required" in t or "2fa code is required" in t:
         return NeedCode("Введите код подтверждения, который пришёл на ваши устройства Apple")
     if "2fa code must" in t:
@@ -192,6 +270,10 @@ def _error(events, raw):
         return NetworkError(CONNECT_HINT)
     if any(m in t for m in NETWORK_MARKERS):
         return NetworkError(NETWORK_HINT)
+    # аварийное завершение ipatool: причина — в строке «panic: …», а не в последней строке трассировки
+    panic = next((l.strip() for l in text.splitlines() if l.strip().startswith(("panic:", "fatal error:"))), None)
+    if panic:
+        return StoreError(f"ipatool аварийно завершился: {panic[:300]}")
     lines = [l for l in text.strip().splitlines() if l.strip()]
     return StoreError(lines[-1][:500] if lines else "Неизвестная ошибка App Store")
 
