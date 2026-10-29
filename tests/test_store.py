@@ -28,6 +28,44 @@ class ErrorTest(unittest.TestCase):
         self.assertIn("Платное", str(self.err("paid app")))
         self.assertEqual(str(self.err("something new")), "something new")
 
+    def test_network_errors(self):
+        sap = ('preparing authentication; the first login may take a few minutes | failed to initialize SAP action '
+               'signer: create SAP signer: exchange SAP setup message: send SAP request: Post '
+               '"https://fpinit.itunes.apple.com/v1/signSapSetup/legacy": context deadline exceeded '
+               '(Client.Timeout exceeded while awaiting headers)')
+        for text in (sap, "dial tcp 17.253.39.140:443: i/o timeout", "read: connection reset by peer",
+                     "lookup buy.itunes.apple.com: no such host", "net/http: TLS handshake timeout"):
+            e = self.err(text)
+            self.assertIsInstance(e, store.NetworkError, text)
+            self.assertIn("VPN", str(e))
+        self.assertNotIsInstance(self.err("invalid credentials"), store.NetworkError)
+
+
+class LoginTest(unittest.TestCase):
+    def test_network_error_is_retried(self):
+        calls = []
+
+        def run(args, timeout=600, cancel=None):
+            calls.append(args)
+            if len(calls) < 3:
+                raise store.NetworkError(store.NETWORK_HINT)
+            return {"success": True, "email": "a@b.c", "name": "Имя"}
+
+        with mock.patch.object(store, "_run", run), mock.patch.object(store, "LOGIN_RETRY_PAUSE", 0):
+            self.assertEqual(store.login("a@b.c", "pw")["name"], "Имя")
+        self.assertEqual(len(calls), 3)
+
+    def test_gives_up_after_attempts_and_does_not_retry_other_errors(self):
+        with mock.patch.object(store, "_run", side_effect=store.NetworkError("сеть")) as run, \
+                mock.patch.object(store, "LOGIN_RETRY_PAUSE", 0):
+            with self.assertRaises(store.NetworkError):
+                store.login("a@b.c", "pw")
+        self.assertEqual(run.call_count, store.LOGIN_ATTEMPTS)
+        with mock.patch.object(store, "_run", side_effect=store.StoreError("Неверный Apple ID или пароль")) as run:
+            with self.assertRaises(store.StoreError):
+                store.login("a@b.c", "pw")
+        self.assertEqual(run.call_count, 1)
+
 
 class RunTest(unittest.TestCase):
     """_run с Python вместо ipatool: лишние аргументы ipatool после -c Python просто игнорирует."""
