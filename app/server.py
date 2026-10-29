@@ -295,7 +295,7 @@ def scan_reason(error):
         return "unavailable", "нет в магазине вашей страны"
     if "не ответил вовремя" in t or "timeout" in t or "deadline" in t:
         return "failed", "Apple не ответила вовремя"
-    if any(k in t for k in ("lock", "being used by another process", "access is denied")):
+    if any(k in t for k in ("lock", "занят", "being used by another process", "access is denied")):
         return "failed", "файл сессии был занят"
     if any(k in t for k in ("connection", "dial tcp", "eof", "no such host", "tls", "network", "reset by peer")):
         return "failed", "сетевая ошибка"

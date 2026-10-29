@@ -47,6 +47,98 @@ class ErrorTest(unittest.TestCase):
         self.assertEqual(str(self.err(sap)), store.NETWORK_HINT)
 
 
+class CookieLockTest(unittest.TestCase):
+    """ipatool падает, если файл cookies держит другой его запуск дольше 3 секунд."""
+    PANIC = ('panic: cannot load cookies: file locked for too long; giving up: cannot acquire lock: file '
+             '"C:\\Users\\u\\.ipatool\\cookies.lock" already locked\n\ngoroutine 1 [running]:\n'
+             'github.com/majd/ipatool/v2/pkg/util.Must[...](...)\n'
+             '\t/Users/runner/work/ipatool/ipatool/pkg/util/must.go:6\n'
+             'main.main()\n\t/Users/runner/work/ipatool/ipatool/main.go:10 +0x13\n')
+
+    def test_panic_is_recognized(self):
+        e = store._error([], self.PANIC)
+        self.assertIsInstance(e, store.SessionBusy)
+        self.assertTrue(e.at_start)
+        self.assertNotIn("main.go", str(e))
+        other = store._error([], "panic: runtime error: index out of range\n\ngoroutine 1\nmain.go:10 +0x13")
+        self.assertIn("index out of range", str(other))
+
+    def test_retried_until_cookies_are_free(self):
+        counter = Path(tempfile.mkdtemp()) / "n"
+        code = ("import json, sys, pathlib; p = pathlib.Path(sys.argv[1]); n = int(p.read_text() or 0) + 1 "
+                "if p.exists() else 1; p.write_text(str(n)); "
+                "(sys.stderr.write(%r), sys.exit(2)) if n < 3 else print(json.dumps({'success': True}))" % self.PANIC)
+        with mock.patch.object(store, "ipatool_path", lambda: sys.executable), \
+                mock.patch.object(store.random, "uniform", lambda a, b: 0):
+            self.assertTrue(store._run(["-c", code, str(counter)])["success"])
+        self.assertEqual(counter.read_text(), "3")
+
+    def test_gives_up_after_attempts(self):
+        code = "import sys; sys.stderr.write(%r); sys.exit(2)" % self.PANIC
+        with mock.patch.object(store, "ipatool_path", lambda: sys.executable), \
+                mock.patch.object(store.random, "uniform", lambda a, b: 0):
+            with self.assertRaises(store.SessionBusy):
+                store._run(["-c", code])
+
+
+class SlotTest(unittest.TestCase):
+    """Windows: у одновременных запусков ipatool свои папки сессии, копии догоняют основную."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.patches = [mock.patch.object(store, "DATA", self.tmp), mock.patch.object(store.sys, "platform", "win32"),
+                        mock.patch.object(store, "IPATOOL_HOME", self.tmp / "ipatool-home")]
+        for p in self.patches:
+            p.start()
+        self.main = self.tmp / "ipatool-home" / ".ipatool"
+        self.main.mkdir(parents=True)
+
+    def tearDown(self):
+        for p in self.patches:
+            p.stop()
+
+    def test_copy_follows_login_and_logout(self):
+        (self.main / "account").write_text("v1", encoding="utf-8")
+        (self.main / "cookies").write_text("c", encoding="utf-8")
+        home = store._slot_home(1)
+        self.assertNotEqual(home, store.IPATOOL_HOME)
+        self.assertEqual((home / ".ipatool" / "account").read_text(encoding="utf-8"), "v1")
+        self.assertEqual(store._slot_home(0), store.IPATOOL_HOME)
+        time.sleep(0.05)
+        (self.main / "account").write_text("v2", encoding="utf-8")  # новый вход
+        store._slot_home(1)
+        self.assertEqual((home / ".ipatool" / "account").read_text(encoding="utf-8"), "v2")
+        (self.main / "account").unlink()  # выход
+        store._slot_home(1)
+        self.assertFalse((home / ".ipatool" / "account").exists())
+
+    def test_other_platforms_share_the_main_folder(self):
+        with mock.patch.object(store.sys, "platform", "darwin"):
+            self.assertEqual(store._slot_home(2), store.IPATOOL_HOME)
+
+    def test_auth_waits_for_main_slot_and_others_run_in_parallel(self):
+        seen, lock = [], threading.Lock()
+
+        def run_once(args, timeout, cancel, home=None):
+            with lock:
+                seen.append((args[0], home))
+            time.sleep(0.2)
+            return {"success": True}
+
+        with mock.patch.object(store, "_run_once", run_once):
+            threads = [threading.Thread(target=store._run, args=(["list-versions"],)) for _ in range(3)]
+            for th in threads:
+                th.start()
+            time.sleep(0.05)
+            store._run(["auth", "info"])
+            for th in threads:
+                th.join()
+        homes = {h for a, h in seen if a == "list-versions"}
+        self.assertEqual(len(homes), 3)  # три одновременных запуска — три разные папки
+        self.assertEqual([h for a, h in seen if a == "auth"], [store.IPATOOL_HOME])
+        self.assertEqual(store._free_slots, set(range(store.SLOTS)))
+
+
 class LoginTest(unittest.TestCase):
     def test_network_error_is_retried(self):
         calls = []
