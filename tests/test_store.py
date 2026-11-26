@@ -31,6 +31,11 @@ class ErrorTest(unittest.TestCase):
         self.assertIn("заблокировал", str(self.err("This Apple Account has been locked for security reasons.")))
         self.assertIn("ограничил", str(self.err("apple rate limited authentication; try again later")))
         self.assertIsInstance(self.err("failed to get account"), store.NotLoggedIn)
+        # сессия от ipatool 2.7: Apple уже не даёт по ней скачивать — нужен один повторный вход
+        amd = self.err("failed to send http request: generate Store AMD proof: store AMD state is not "
+                       "provisioned; run 'ipatool auth login' to authenticate")
+        self.assertIsInstance(amd, store.NotLoggedIn)
+        self.assertIn("заново", str(amd))
         self.assertIn("нет в истории покупок", str(self.err("license is required")))
         self.assertIn("Платное", str(self.err("paid app")))
         self.assertEqual(str(self.err("something new")), "something new")
@@ -150,6 +155,41 @@ class SlotTest(unittest.TestCase):
         self.assertEqual(len(homes), 3)  # три одновременных запуска — три разные папки
         self.assertEqual([h for a, h in seen if a == "auth"], [store.IPATOOL_HOME])
         self.assertEqual(store._free_slots, set(range(store.SLOTS)))
+
+
+class ReloginTest(unittest.TestCase):
+    """Сессия от ipatool 2.7 не годится для скачивания в 2.8: нет состояния Store AMD (anisette-v4),
+    поэтому программа должна сразу просить повторный вход, а не показывать «вход выполнен»."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.home = self.tmp / "ipatool-home"
+        (self.home / ".ipatool").mkdir(parents=True)
+        self.patches = [mock.patch.object(store, "IPATOOL_HOME", self.home),
+                        mock.patch.object(store, "_migrate_session", lambda: None)]
+        for p in self.patches:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def touch(self, *names):
+        for name in names:
+            (self.home / ".ipatool" / name).write_text(name, encoding="utf-8")
+
+    def test_old_session_requires_login(self):
+        self.touch("account", "cookies", "kbsync-v1")  # сессия ipatool 2.7 — без anisette-v4
+        self.assertTrue(store.session_needs_relogin())
+        with mock.patch.object(store, "_run") as run:
+            self.assertIsNone(store.account_info())
+        run.assert_not_called()  # к Apple даже не обращаемся
+
+    def test_provisioned_session_is_used(self):
+        self.touch("account", "cookies", "kbsync-v1", "anisette-v4")
+        self.assertFalse(store.session_needs_relogin())
+        with mock.patch.object(store, "_run", return_value={"email": "a@b.c", "name": "Имя"}):
+            self.assertEqual(store.account_info(), {"email": "a@b.c", "name": "Имя"})
+
+    def test_no_session_is_not_a_relogin(self):
+        self.assertFalse(store.session_needs_relogin())
 
 
 class LoginTest(unittest.TestCase):

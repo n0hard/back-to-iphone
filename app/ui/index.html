@@ -131,6 +131,7 @@
     <h2><span class="num" id="n1">1</span>Apple ID</h2>
     <div id="loginBox" class="stack">
       <p class="muted">Нужен тот Apple ID, с которого приложение когда-то скачивалось. Пароль уходит только на серверы Apple; для автоматического перелогина он хранится в зашифрованном виде на этом компьютере (ipatool). Первый вход может занять несколько минут: скачиваются компоненты Apple.</p>
+      <p class="muted hidden" id="reloginHint"><b>После обновления нужно войти заново:</b> так Apple выдаёт новое состояние входа, без него скачивание не работает.</p>
       <div class="row">
         <input type="email" id="email" placeholder="Apple ID (e-mail)" autocomplete="username">
         <input type="password" id="password" placeholder="Пароль" autocomplete="current-password">
@@ -276,6 +277,7 @@ $("loginBtn").onclick = async () => {
   try {
     const r = await api("/api/login", {email: $("email").value, password: $("password").value, code: $("code").value});
     account = r.account; $("password").value = ""; $("code").value = ""; $("codeRow").classList.add("hidden");
+    $("reloginHint").classList.add("hidden");
     renderAccount();
   } catch (e) {
     if (e.data && e.data.needCode) { $("codeRow").classList.remove("hidden"); $("code").focus(); }
@@ -848,6 +850,7 @@ async function poll() {
   platform = state.platform; $("verTag").textContent = "версия " + state.version;
   showUpd(state.update); watchUpdate();
   account = state.account; renderAccount();
+  $("reloginHint").classList.toggle("hidden", !(state.relogin && !account));
   const driver = {
     win32: "Установите «Apple Devices» из Microsoft Store (или iTunes) и переподключите кабель.",
     linux: "Нужна служба usbmuxd: <code>sudo apt install usbmuxd</code> (или аналог для вашего дистрибутива), затем переподключите кабель.",

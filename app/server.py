@@ -450,7 +450,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if url.path == "/api/state":
                 self.send_json({"account": account, "platform": sys.platform, "version": VERSION,
-                                "update": updater.state()})
+                                "update": updater.state(), "relogin": store.session_needs_relogin()})
             elif url.path == "/api/update":
                 self.send_json(updater.state())
             elif url.path == "/api/devices":

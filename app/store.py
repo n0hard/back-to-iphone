@@ -83,6 +83,13 @@ class SessionBusy(StoreError):
         self.at_start = at_start
 
 
+# ipatool 2.8 хранит состояние Store AMD (anisette-v4), которое Apple требует для скачивания. В сессии,
+# созданной ipatool 2.7 и старше, этого файла нет — скачивание падает с «store AMD state is not provisioned».
+# Вылечить это можно только повторным входом: Apple выдаёт новое состояние только при входе с паролем.
+LOGIN_REQUIRED_AFTER_UPDATE = ("После обновления нужно один раз войти в Apple ID заново — так Apple выдаёт "
+                               "новое состояние входа. Нажмите «Войти» и введите пароль")
+
+
 SESSION_BUSY = "Файл сессии был занят другим запросом к App Store. Повторите — обычно со второго раза проходит"
 # Каждый запуск ipatool блокирует файл cookies в своей папке сессии и ждёт чужую блокировку всего 3 секунды,
 # а потом падает («panic: cannot load cookies: file locked for too long»). На Windows блокировка «переносимая» —
@@ -281,6 +288,8 @@ def _error(events, raw):
     if any(m in t for m in ("open remote image", "read remote image", "load anisette assets", "load store amd assets",
                             "resolve macos", "download apple root", "anisette provisioning")):
         return NetworkError(NETWORK_HINT)
+    if "store amd state is not provisioned" in t or "generate store amd proof" in t:
+        return NotLoggedIn(LOGIN_REQUIRED_AFTER_UPDATE)
     if "not logged in" in t or "failed to get account" in t:
         return NotLoggedIn("Сначала войдите в Apple ID")
     if "license is required" in t or "license required" in t or "9610" in t:
@@ -303,8 +312,17 @@ def _error(events, raw):
 
 # ---------- аккаунт ----------
 
+def session_needs_relogin():
+    """Сессия от ipatool 2.7 и старше: файл account есть, а состояния Store AMD (anisette-v4) нет.
+    Проверять «auth info» бесполезно — старая сессия его проходит, но Apple уже не даёт по ней скачивать."""
+    d = IPATOOL_HOME / ".ipatool"
+    return (d / "account").exists() and not (d / "anisette-v4").exists()
+
+
 def account_info():
     _migrate_session()
+    if session_needs_relogin():  # сразу просим войти заново, а не ждём ошибку при первом скачивании
+        return None
     try:
         r = _run(["auth", "info"], timeout=60)
     except StoreError:
