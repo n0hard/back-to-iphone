@@ -17,15 +17,15 @@ from pathlib import Path
 import requests
 
 BIN = Path(__file__).resolve().parent.parent / "bin"
-VERSION = "2.7.0"
+VERSION = "2.8.1"
 URL = "https://github.com/majd/ipatool/releases/download/v{v}/ipatool-{v}-{system}-{arch}.tar.gz"
 SHA256 = {
-    ("windows", "amd64"): "b729608716908be287c2e6972f9e8cd05f879810ae5d182fc856c9e57cca0dd5",
-    ("windows", "arm64"): "85ab35a268b47e1729412178063fe11621cae1135f33d3b9ab5233d436bf2562",
-    ("macos", "amd64"): "05f48994d8b3cfefe7ea1172a0ac0b28715888e9df0af38cf3e490d2ed592263",
-    ("macos", "arm64"): "5ae100d4520cf4b3f4374239e5925a9ad9a8dc02abc16bae27479e7ae99aca33",
-    ("linux", "amd64"): "68372de9743d468296f2dba5b413a3e7df56ad0c85b8d0f4f0f6c9b8b53a54e8",
-    ("linux", "arm64"): "133c3fb754bafcd61698ba6047b48096c7033345529f57d7a83d281f8a403c23",
+    ("windows", "amd64"): "a8ccd8075bc083f99caa49976997860ba5e0e3e8f76b450360cd805262542e97",
+    ("windows", "arm64"): "60cce6a66d7ad5f3bf2e301a8fc8b8dc74a406d5bcc15496398a8f997854fcad",
+    ("macos", "amd64"): "8d1d93c1f72724cec01e72dab30ecb8eb3faf4c783f71d2310c2db3c7976efbb",
+    ("macos", "arm64"): "3ad673375ea6bc479df0340df03950c3f6669ab554466b05e4bb99b3369d0dd2",
+    ("linux", "amd64"): "c5a7d35d98a0ac41fbb9d21c19437c3e6006c6e32556f484d09ed26872f9c283",
+    ("linux", "arm64"): "64dc6311acbd92f8165fe382ee86852f520b23355dae65933cb0f60177357116",
 }
 
 

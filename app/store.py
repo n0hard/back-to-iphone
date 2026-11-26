@@ -156,6 +156,10 @@ def _ipatool_env(home=None):
     home = Path(home or IPATOOL_HOME)
     home.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
+    # ipatool 2.6+ кладёт сессию в $XDG_STATE_HOME/ipatool или $XDG_DATA_HOME/ipatool, если эти переменные
+    # заданы, — мимо нашей папки и в общий каталог других программ на ipatool. Убираем их.
+    env.pop("XDG_STATE_HOME", None)
+    env.pop("XDG_DATA_HOME", None)
     # На macOS сессия ipatool лежит в системной связке ключей, а не в общем файле, и HOME трогать нельзя:
     # от него зависит доступ к связке. На Windows и Linux — файловое хранилище в своей папке.
     if sys.platform == "win32":
@@ -164,10 +168,15 @@ def _ipatool_env(home=None):
         env.update(HOMEDRIVE=drive, HOMEPATH=rest, USERPROFILE=str(home), HOME=str(home))
     elif sys.platform != "darwin":
         env["HOME"] = str(home)
+        # ipatool 2.8 скачивает компоненты Apple в кэш пользователя (os.UserCacheDir) — на Linux это $HOME/.cache.
+        # HOME у слотов разный, поэтому задаём общий кэш: иначе каждая копия сессии качала бы их заново.
+        env["XDG_CACHE_HOME"] = str(DATA / "cache")
     return env
 
 
-SESSION_FILES = ("account", "cookies", "kbsync-v1")
+# account и cookies — сессия Apple; kbsync-v1 — кэш подписи загрузок; anisette-v4 — состояние входа,
+# которое ipatool 2.8 готовит локально при первом входе.
+SESSION_FILES = ("account", "cookies", "kbsync-v1", "anisette-v4")
 
 
 def _migrate_session():
@@ -252,12 +261,26 @@ def _error(events, raw):
         return SessionBusy(SESSION_BUSY, at_start="cannot load cookies" in t)
     if "auth code is required" in t or "2fa code is required" in t:
         return NeedCode("Введите код подтверждения, который пришёл на ваши устройства Apple")
-    if "2fa code must" in t:
+    if "2fa code must" in t or "must contain exactly six digits" in t:
         return NeedCode("Код должен состоять из 6 цифр")
+    if "did not complete verification" in t or "fresh 2fa code" in t:
+        return NeedCode("Код не подошёл или устарел — запросите новый код и введите его")
     if "invalid credentials" in t or "-5000" in t or "badlogin" in t:
         return StoreError("Неверный Apple ID или пароль")
+    if "password has changed" in t:
+        return StoreError("Пароль Apple ID изменился — войдите с новым паролем")
     if "account is disabled" in t:
         return StoreError("Apple ID заблокирован")
+    if "locked for security reasons" in t or "account has been locked" in t:
+        return StoreError("Apple заблокировал вход в аккаунт. Разблокируйте его на iforgot.apple.com и повторите")
+    if "rate limited" in t or "too many requests" in t or "requested a wait longer" in t:
+        return StoreError("Apple временно ограничил попытки входа. Подождите несколько минут и попробуйте снова")
+    if "no usable authentication response" in t or "authentication request failed after" in t:
+        return NetworkError(NETWORK_HINT)
+    # ipatool 2.8 при первом входе скачивает компоненты Apple с их CDN; сбой скачивания — тоже сеть
+    if any(m in t for m in ("open remote image", "read remote image", "load anisette assets", "load store amd assets",
+                            "resolve macos", "download apple root", "anisette provisioning")):
+        return NetworkError(NETWORK_HINT)
     if "not logged in" in t or "failed to get account" in t:
         return NotLoggedIn("Сначала войдите в Apple ID")
     if "license is required" in t or "license required" in t or "9610" in t:
@@ -299,7 +322,8 @@ def login(email, password, code=""):
         args += ["--auth-code", code]
     for attempt in range(LOGIN_ATTEMPTS):  # сетевой сбой у Apple часто проходит за секунды — повторяем сами
         try:
-            r = _run(args, timeout=900)  # первый вход ipatool готовит эмулятор — может занять пару минут
+            # первый вход ipatool 2.8 скачивает компоненты Apple и готовит локальный эмулятор — это долго
+            r = _run(args, timeout=1800)
             break
         except NetworkError:
             if attempt == LOGIN_ATTEMPTS - 1:

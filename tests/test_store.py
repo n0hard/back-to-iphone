@@ -21,8 +21,15 @@ class ErrorTest(unittest.TestCase):
 
     def test_messages(self):
         self.assertIsInstance(self.err("an auth code is required"), store.NeedCode)
+        self.assertIsInstance(self.err("2FA code is required; run the command again and supply a code "
+                                       "using the `--auth-code` flag"), store.NeedCode)
         self.assertIn("6 цифр", str(self.err("2FA code must be 6 digits")))
+        self.assertIn("6 цифр", str(self.err("2FA code must contain exactly six digits")))
+        self.assertIn("не подошёл", str(self.err("apple did not complete verification; try a fresh 2FA code")))
         self.assertIn("Неверный Apple ID", str(self.err("invalid credentials")))
+        self.assertIn("изменился", str(self.err("Your password has changed.")))
+        self.assertIn("заблокировал", str(self.err("This Apple Account has been locked for security reasons.")))
+        self.assertIn("ограничил", str(self.err("apple rate limited authentication; try again later")))
         self.assertIsInstance(self.err("failed to get account"), store.NotLoggedIn)
         self.assertIn("нет в истории покупок", str(self.err("license is required")))
         self.assertIn("Платное", str(self.err("paid app")))
@@ -39,6 +46,12 @@ class ErrorTest(unittest.TestCase):
             self.assertIsInstance(e, store.NetworkError, text)
             self.assertIn("VPN", str(e))
         self.assertNotIsInstance(self.err("invalid credentials"), store.NetworkError)
+        # Apple не отдал пригодный ответ на вход (или все попытки упали) — это временный сбой, стоит повторить
+        for text in ("apple returned no usable authentication response (HTTP 200): missing account credentials",
+                     "authentication request failed after 3 attempts (HTTP 503, 503, 503)",
+                     "load anisette assets: resolve macOS 27.0.1 (26A434) frameworks: open remote image: "
+                     "server returned 403 Forbidden without byte-range support"):
+            self.assertIsInstance(self.err(text), store.NetworkError, text)
         # не удалось даже подключиться — ждать бесполезно, нужен VPN, другая сеть или DNS
         dial = ('send SAP request: Post "https://fpinit.itunes.apple.com/v1/signSapSetup/legacy": dial tcp '
                 '17.253.254.9:443: i/o timeout (Client.Timeout exceeded while awaiting headers)')
@@ -252,6 +265,18 @@ class SessionTest(unittest.TestCase):
         home = str(self.tmp / "data" / "ipatool-home")
         self.assertEqual(env["HOMEDRIVE"] + env["HOMEPATH"], home)
         self.assertEqual((env["USERPROFILE"], env["HOME"]), (home, home))
+
+    def test_xdg_variables_do_not_move_the_session(self):
+        """ipatool 2.6+ уважает XDG_STATE_HOME/XDG_DATA_HOME: с ними сессия ушла бы из нашей папки."""
+        with mock.patch.object(store.sys, "platform", "linux"), \
+                mock.patch.dict(store.os.environ, {"XDG_STATE_HOME": str(self.tmp / "xdg-state"),
+                                                   "XDG_DATA_HOME": str(self.tmp / "xdg-data")}):
+            env = store._ipatool_env()
+        self.assertNotIn("XDG_STATE_HOME", env)
+        self.assertNotIn("XDG_DATA_HOME", env)
+        self.assertEqual(env["HOME"], str(store.IPATOOL_HOME))
+        # компоненты Apple (ipatool 2.8) качаются в общий кэш, а не в папку каждого слота
+        self.assertEqual(env["XDG_CACHE_HOME"], str(store.DATA / "cache"))
 
     def test_own_session_is_moved(self):
         with mock.patch.object(store, "_run", return_value={"success": True}) as run:
